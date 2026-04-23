@@ -7,7 +7,7 @@ import EmployeeList from './components/EmployeeList'
 import BottomNav from './components/BottomNav'
 
 export default function App() {
-  const [tab, setTab] = useState<TabName>('dashboard')
+  const [tab, setTab] = useState<TabName>('schedule')
   const { employees, shifts, loading, error, reload } = useData()
 
   if (loading) {

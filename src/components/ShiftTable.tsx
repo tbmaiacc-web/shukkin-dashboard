@@ -34,11 +34,10 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
   const [modal, setModal] = useState<ModalState | null>(null)
-  const [saving, setSaving] = useState(false)
   const [localShifts, setLocalShifts] = useState<Shift[]>(initialShifts)
 
   useEffect(() => {
-    if (!saving) setLocalShifts(initialShifts)
+    setLocalShifts(initialShifts)
   }, [initialShifts])
 
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
@@ -61,34 +60,25 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
     setModal({ date, employee: emp, currentShift: shiftType })
   }
 
-  const handleSave = async (shiftType: string, notes: string) => {
+  const handleSave = (shiftType: string, notes: string) => {
     if (!modal) return
-    setSaving(true)
     const dateStr = format(modal.date, 'yyyy-MM-dd')
+    const empName = modal.employee.name
+    const loc = modal.employee.location
 
     // 楽観的更新
     setLocalShifts(prev => {
-      const filtered = prev.filter(s => !(s.date === dateStr && s.employeeName === modal.employee.name))
+      const filtered = prev.filter(s => !(s.date === dateStr && s.employeeName === empName))
       if (shiftType === '出勤') return filtered
-      return [...filtered, {
-        date: dateStr,
-        employeeName: modal.employee.name,
-        shiftType,
-        notes,
-        location: modal.employee.location,
-      }]
+      return [...filtered, { date: dateStr, employeeName: empName, shiftType, notes, location: loc }]
     })
+    setModal(null)
 
-    try {
-      if (shiftType === '出勤') {
-        await deleteShift(dateStr, modal.employee.name)
-      } else {
-        await upsertShift(dateStr, modal.employee.name, shiftType, modal.employee.location, notes)
-      }
-    } finally {
-      setSaving(false)
-      setModal(null)
-      setTimeout(onReload, 8000)
+    // 裏側でGASへ保存（UIは待たない）
+    if (shiftType === '出勤') {
+      deleteShift(dateStr, empName).catch(() => {})
+    } else {
+      upsertShift(dateStr, empName, shiftType, loc, notes).catch(() => {})
     }
   }
 
@@ -190,7 +180,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
           currentShift={modal.currentShift}
           onSave={handleSave}
           onClose={() => setModal(null)}
-          saving={saving}
+          saving={false}
         />
       )}
     </div>
