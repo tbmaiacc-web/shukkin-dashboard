@@ -1,4 +1,5 @@
 import { GAS_URL } from '../config'
+import { Employee } from '../types'
 
 async function gasGet(params: Record<string, string>): Promise<void> {
   const url = new URL(GAS_URL)
@@ -20,10 +21,10 @@ export async function deleteShift(date: string, employeeName: string) {
   await gasGet({ action: 'deleteShift', date, employeeName })
 }
 
-export async function updateEmployee(employee: Record<string, string>) {
-  await gasGet({ action: 'updateEmployee', ...employee })
+export async function updateEmployee(employee: Employee) {
+  await gasGet({ action: 'updateEmployee', id: employee.id, name: employee.name, role: employee.role, location: employee.location })
 }
 
-export async function addEmployee(employee: Record<string, string>) {
-  await gasGet({ action: 'addEmployee', ...employee })
+export async function addEmployee(employee: Employee) {
+  await gasGet({ action: 'addEmployee', name: employee.name, role: employee.role, location: employee.location })
 }
