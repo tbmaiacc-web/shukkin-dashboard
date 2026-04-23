@@ -1,11 +1,9 @@
 import { GAS_URL } from '../config'
 
-async function gasPost(body: object): Promise<void> {
-  await fetch(GAS_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(body),
-  })
+async function gasGet(params: Record<string, string>): Promise<void> {
+  const url = new URL(GAS_URL)
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+  await fetch(url.toString())
 }
 
 export async function upsertShift(
@@ -15,17 +13,17 @@ export async function upsertShift(
   location: string,
   notes = ''
 ) {
-  await gasPost({ action: 'upsertShift', date, employeeName, shiftType, location, notes })
+  await gasGet({ action: 'upsertShift', date, employeeName, shiftType, location, notes })
 }
 
 export async function deleteShift(date: string, employeeName: string) {
-  await gasPost({ action: 'deleteShift', date, employeeName })
+  await gasGet({ action: 'deleteShift', date, employeeName })
 }
 
-export async function updateEmployee(employee: object) {
-  await gasPost({ action: 'updateEmployee', ...employee })
+export async function updateEmployee(employee: Record<string, string>) {
+  await gasGet({ action: 'updateEmployee', ...employee })
 }
 
-export async function addEmployee(employee: object) {
-  await gasPost({ action: 'addEmployee', ...employee })
+export async function addEmployee(employee: Record<string, string>) {
+  await gasGet({ action: 'addEmployee', ...employee })
 }

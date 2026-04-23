@@ -7,19 +7,32 @@
 // Web App API (doGet)
 // ========================================
 function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) || '';
-  let data;
+  const p = (e && e.parameter) || {};
+  const action = p.action || '';
+  let result;
 
-  if (action === 'employees') {
-    data = getEmployeesJson();
-  } else if (action === 'shifts') {
-    data = getShiftsJson();
-  } else {
-    data = { employees: getEmployeesJson(), shifts: getShiftsJson() };
+  try {
+    if (action === 'upsertShift') {
+      result = upsertShift(p);
+    } else if (action === 'deleteShift') {
+      result = deleteShift(p);
+    } else if (action === 'updateEmployee') {
+      result = updateEmployee(p);
+    } else if (action === 'addEmployee') {
+      result = addEmployee(p);
+    } else if (action === 'employees') {
+      result = getEmployeesJson();
+    } else if (action === 'shifts') {
+      result = getShiftsJson();
+    } else {
+      result = { employees: getEmployeesJson(), shifts: getShiftsJson() };
+    }
+  } catch (err) {
+    result = { error: err.message };
   }
 
   return ContentService
-    .createTextOutput(JSON.stringify(data))
+    .createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
