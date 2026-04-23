@@ -42,7 +42,7 @@ export default function App() {
     <div className="min-h-dvh bg-gray-50">
       {tab === 'dashboard' && <Dashboard employees={employees} shifts={shifts} />}
       {tab === 'schedule' && <ShiftTable employees={employees} shifts={shifts} onReload={reload} />}
-      {tab === 'employees' && <EmployeeList employees={employees} />}
+      {tab === 'employees' && <EmployeeList employees={employees} onReload={reload} />}
       <BottomNav active={tab} onChange={setTab} />
     </div>
   )

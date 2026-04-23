@@ -36,6 +36,120 @@ function getEmployeesJson() {
   });
 }
 
+// ========================================
+// Web App API (doPost) - シフト・従業員の更新
+// Content-Type: text/plain でJSONを受け取る
+// ========================================
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const action = data.action;
+  let result;
+
+  try {
+    if (action === 'upsertShift') {
+      result = upsertShift(data);
+    } else if (action === 'deleteShift') {
+      result = deleteShift(data);
+    } else if (action === 'updateEmployee') {
+      result = updateEmployee(data);
+    } else if (action === 'addEmployee') {
+      result = addEmployee(data);
+    } else {
+      result = { error: 'Unknown action' };
+    }
+  } catch (err) {
+    result = { error: err.message };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function upsertShift(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheets = ss.getSheets();
+  const sheet = sheets.find(s => s.getSheetId() === SOURCE_SHEET_GID) || ss.getSheetByName('shifts');
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const dateIdx  = headers.indexOf('date');
+  const nameIdx  = headers.indexOf('employeeName');
+  const shiftIdx = headers.indexOf('shiftType');
+  const noteIdx  = headers.indexOf('notes');
+  const locIdx   = headers.indexOf('location');
+
+  // 既存行を探す
+  for (let i = 1; i < rows.length; i++) {
+    const rowDate = rows[i][dateIdx] instanceof Date
+      ? Utilities.formatDate(rows[i][dateIdx], 'Asia/Tokyo', 'yyyy-MM-dd')
+      : String(rows[i][dateIdx]);
+    if (rowDate === data.date && String(rows[i][nameIdx]).trim() === data.employeeName) {
+      sheet.getRange(i + 1, shiftIdx + 1).setValue(data.shiftType);
+      if (noteIdx >= 0) sheet.getRange(i + 1, noteIdx + 1).setValue(data.notes || '');
+      return { ok: true, action: 'updated' };
+    }
+  }
+
+  // なければ追加
+  const newRow = new Array(headers.length).fill('');
+  newRow[dateIdx]  = data.date;
+  newRow[nameIdx]  = data.employeeName;
+  newRow[shiftIdx] = data.shiftType;
+  if (noteIdx >= 0) newRow[noteIdx] = data.notes || '';
+  if (locIdx >= 0)  newRow[locIdx]  = data.location || '';
+  sheet.appendRow(newRow);
+  return { ok: true, action: 'added' };
+}
+
+function deleteShift(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheets = ss.getSheets();
+  const sheet = sheets.find(s => s.getSheetId() === SOURCE_SHEET_GID) || ss.getSheetByName('shifts');
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const dateIdx = headers.indexOf('date');
+  const nameIdx = headers.indexOf('employeeName');
+
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const rowDate = rows[i][dateIdx] instanceof Date
+      ? Utilities.formatDate(rows[i][dateIdx], 'Asia/Tokyo', 'yyyy-MM-dd')
+      : String(rows[i][dateIdx]);
+    if (rowDate === data.date && String(rows[i][nameIdx]).trim() === data.employeeName) {
+      sheet.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { ok: true, action: 'not_found' };
+}
+
+function updateEmployee(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx = headers.indexOf('id');
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      headers.forEach((h, j) => {
+        if (data[h] !== undefined) sheet.getRange(i + 1, j + 1).setValue(data[h]);
+      });
+      return { ok: true };
+    }
+  }
+  return { error: 'Employee not found' };
+}
+
+function addEmployee(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const newId = String(Date.now());
+  const row = headers.map(h => h === 'id' ? newId : (data[h] || ''));
+  sheet.appendRow(row);
+  return { ok: true, id: newId };
+}
+
 function getShiftsJson() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheets = ss.getSheets();

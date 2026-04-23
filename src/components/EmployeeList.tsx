@@ -3,21 +3,40 @@ import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Search, Calendar, Pencil, Plus } from 'lucide-react'
 import { Employee } from '../types'
+import { updateEmployee, addEmployee } from '../hooks/useMutation'
+import EmployeeModal from './EmployeeModal'
 
 interface Props {
   employees: Employee[]
+  onReload: () => void
 }
 
-export default function EmployeeList({ employees }: Props) {
+export default function EmployeeList({ employees, onReload }: Props) {
   const [search, setSearch] = useState('')
+  const [modal, setModal] = useState<Employee | null | 'new'>()
+  const [saving, setSaving] = useState(false)
 
   const filtered = employees.filter(emp =>
     !search || emp.name.includes(search) || emp.location.includes(search) || emp.role.includes(search)
   )
 
+  const handleSave = async (emp: Employee) => {
+    setSaving(true)
+    try {
+      if (modal === 'new') {
+        await addEmployee(emp)
+      } else {
+        await updateEmployee(emp)
+      }
+    } finally {
+      setSaving(false)
+      setModal(undefined)
+      setTimeout(onReload, 1500)
+    }
+  }
+
   return (
     <div className="pb-20">
-      {/* ヘッダー */}
       <div className="bg-white px-4 pt-12 pb-4">
         <div className="flex items-start justify-between">
           <div>
@@ -32,7 +51,6 @@ export default function EmployeeList({ employees }: Props) {
         </div>
       </div>
 
-      {/* 検索 */}
       <div className="px-4 py-3 bg-white border-b border-gray-100">
         <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2">
           <Search size={16} className="text-gray-400" />
@@ -46,11 +64,13 @@ export default function EmployeeList({ employees }: Props) {
         </div>
       </div>
 
-      {/* 一覧 */}
       <div className="px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-gray-900">従業員一覧</h2>
-          <button className="flex items-center gap-1 bg-gray-900 text-white text-sm font-medium px-3 py-1.5 rounded-xl">
+          <button
+            onClick={() => setModal('new')}
+            className="flex items-center gap-1 bg-gray-900 text-white text-sm font-medium px-3 py-1.5 rounded-xl"
+          >
             <Plus size={14} />
             追加
           </button>
@@ -65,13 +85,25 @@ export default function EmployeeList({ employees }: Props) {
                 <p className="font-semibold text-gray-900 text-sm">{emp.name}</p>
                 <p className="text-xs text-gray-400">{emp.role}・{emp.location}</p>
               </div>
-              <button className="p-1.5 text-gray-300 hover:text-gray-500">
+              <button
+                onClick={() => setModal(emp)}
+                className="p-1.5 text-gray-300 hover:text-gray-600 active:opacity-50"
+              >
                 <Pencil size={16} />
               </button>
             </div>
           ))}
         </div>
       </div>
+
+      {modal !== undefined && (
+        <EmployeeModal
+          employee={modal === 'new' ? null : modal}
+          onSave={handleSave}
+          onClose={() => setModal(undefined)}
+          saving={saving}
+        />
+      )}
     </div>
   )
 }

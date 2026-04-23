@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
-import { Employee, Shift, SHIFT_DISPLAY, WORKING, NON_WORKING_TYPES } from '../types'
+import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
+import { upsertShift, deleteShift } from '../hooks/useMutation'
+import ShiftModal from './ShiftModal'
 
 interface Props {
   employees: Employee[]
@@ -10,24 +12,38 @@ interface Props {
   onReload: () => void
 }
 
-const DOW = ['日', '月', '火', '水', '木', '金', '土']
-
-function getShiftDisplay(emp: Employee, date: Date, shifts: Shift[]) {
-  const dateStr = format(date, 'yyyy-MM-dd')
-  const entry = shifts.find(s => s.date === dateStr && s.employeeName === emp.name)
-  if (!entry) return WORKING
-  return SHIFT_DISPLAY[entry.shiftType] || { label: entry.shiftType[0], className: 'text-gray-600' }
+interface ModalState {
+  date: Date
+  employee: Employee
+  currentShift: string
 }
 
-export default function ShiftTable({ employees, shifts, onReload }: Props) {
+const DOW = ['日', '月', '火', '水', '木', '金', '土']
+
+function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
+  const dateStr = format(date, 'yyyy-MM-dd')
+  const entry = shifts.find(s => s.date === dateStr && s.employeeName === emp.name)
+  if (!entry) return { display: WORKING, shiftType: '出勤' }
+  return {
+    display: SHIFT_DISPLAY[entry.shiftType] || { label: entry.shiftType[0], className: 'text-gray-600' },
+    shiftType: entry.shiftType,
+  }
+}
+
+export default function ShiftTable({ employees, shifts: initialShifts, onReload }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
+  const [modal, setModal] = useState<ModalState | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [localShifts, setLocalShifts] = useState<Shift[]>(initialShifts)
 
-  const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 }) // 月曜始まり
-  // 日〜土の7日間（日曜から）
+  // 親からshiftsが更新されたら同期
+  if (initialShifts !== localShifts && !saving) {
+    setLocalShifts(initialShifts)
+  }
+
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
   const days = eachDayOfInterval({ start: weekStartSun, end: addDays(weekStartSun, 6) })
-
   const today = new Date()
   const locations = ['全院', ...Array.from(new Set(employees.map(e => e.location))).sort()]
 
@@ -42,9 +58,43 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
 
   const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[6], 'M/d')}`
 
+  const handleCellClick = (emp: Employee, date: Date, shiftType: string) => {
+    setModal({ date, employee: emp, currentShift: shiftType })
+  }
+
+  const handleSave = async (shiftType: string, notes: string) => {
+    if (!modal) return
+    setSaving(true)
+    const dateStr = format(modal.date, 'yyyy-MM-dd')
+
+    // 楽観的更新
+    setLocalShifts(prev => {
+      const filtered = prev.filter(s => !(s.date === dateStr && s.employeeName === modal.employee.name))
+      if (shiftType === '出勤') return filtered
+      return [...filtered, {
+        date: dateStr,
+        employeeName: modal.employee.name,
+        shiftType,
+        notes,
+        location: modal.employee.location,
+      }]
+    })
+
+    try {
+      if (shiftType === '出勤') {
+        await deleteShift(dateStr, modal.employee.name)
+      } else {
+        await upsertShift(dateStr, modal.employee.name, shiftType, modal.employee.location, notes)
+      }
+    } finally {
+      setSaving(false)
+      setModal(null)
+      setTimeout(onReload, 1500)
+    }
+  }
+
   return (
     <div className="pb-20">
-      {/* ヘッダー */}
       <div className="bg-white px-4 pt-12 pb-3">
         <h1 className="text-2xl font-bold text-gray-900">勤務早見表</h1>
         <p className="text-sm text-gray-400 mt-0.5">
@@ -52,7 +102,6 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
         </p>
       </div>
 
-      {/* ナビゲーション */}
       <div className="bg-white px-3 py-2 border-b border-gray-100 flex items-center gap-2">
         <div className="flex items-center bg-gray-100 rounded-xl px-2 py-1.5 gap-1 flex-1">
           <button onClick={() => setBaseDate(d => subWeeks(d, 1))} className="p-1 text-gray-500">
@@ -63,10 +112,7 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
             <ChevronRight size={16} />
           </button>
         </div>
-        <button
-          onClick={() => setBaseDate(new Date())}
-          className="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-xl"
-        >
+        <button onClick={() => setBaseDate(new Date())} className="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-xl">
           今日
         </button>
         <button onClick={onReload} className="p-1.5 text-gray-500">
@@ -81,7 +127,6 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
         </select>
       </div>
 
-      {/* テーブル */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ minWidth: '520px' }}>
           <thead>
@@ -93,12 +138,9 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
                 const isToday = isSameDay(d, today)
                 const dow = d.getDay()
                 return (
-                  <th
-                    key={i}
-                    className={`py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
-                      isToday ? 'bg-gray-100' : 'bg-white'
-                    } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}
-                  >
+                  <th key={i} className={`py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
+                    isToday ? 'bg-gray-100' : 'bg-white'
+                  } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}>
                     <div>{format(d, 'M/d')}</div>
                     <div>{DOW[dow]}</div>
                   </th>
@@ -110,10 +152,7 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
             {grouped.map(({ location, staff }) => (
               <>
                 <tr key={`loc-${location}`}>
-                  <td
-                    colSpan={8}
-                    className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky left-0"
-                  >
+                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky left-0">
                     {location}
                   </td>
                 </tr>
@@ -124,15 +163,16 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
                     </td>
                     {days.map((d, i) => {
                       const isToday = isSameDay(d, today)
-                      const disp = getShiftDisplay(emp, d, shifts)
+                      const { display, shiftType } = getShiftInfo(emp, d, localShifts)
                       return (
                         <td
                           key={i}
-                          className={`text-center py-2 text-sm font-bold ${disp.className} ${
+                          onClick={() => handleCellClick(emp, d, shiftType)}
+                          className={`text-center py-2 text-sm font-bold cursor-pointer active:opacity-50 transition-opacity ${display.className} ${
                             isToday ? 'bg-gray-100' : ''
                           }`}
                         >
-                          {disp.label}
+                          {display.label}
                         </td>
                       )
                     })}
@@ -143,6 +183,17 @@ export default function ShiftTable({ employees, shifts, onReload }: Props) {
           </tbody>
         </table>
       </div>
+
+      {modal && (
+        <ShiftModal
+          date={modal.date}
+          employeeName={modal.employee.name}
+          currentShift={modal.currentShift}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+          saving={saving}
+        />
+      )}
     </div>
   )
 }
