@@ -26,7 +26,7 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
         className="relative bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-10"

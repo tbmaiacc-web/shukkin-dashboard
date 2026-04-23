@@ -29,10 +29,11 @@ export default function ShiftModal({ date, employeeName, currentShift, onSave, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
-        className="relative bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-10"
+        className="relative bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-safe overflow-y-auto"
+        style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))', maxHeight: '75vh' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
