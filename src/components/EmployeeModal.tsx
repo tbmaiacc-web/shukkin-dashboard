@@ -9,7 +9,7 @@ interface Props {
   saving: boolean
 }
 
-const ROLES = ['院長', '副院長', 'セラピスト', 'MC', 'スタッフ']
+const ROLES = ['院長', '副院長', 'セラピスト']
 const LOCATIONS = ['草加院', 'イオン八潮南院', '上尾院', '前橋院', '伊勢崎宮子院', '取手院']
 
 export default function EmployeeModal({ employee, onSave, onClose, saving }: Props) {
