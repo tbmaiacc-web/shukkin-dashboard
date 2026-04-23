@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
@@ -37,10 +37,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
   const [saving, setSaving] = useState(false)
   const [localShifts, setLocalShifts] = useState<Shift[]>(initialShifts)
 
-  // 親からshiftsが更新されたら同期
-  if (initialShifts !== localShifts && !saving) {
-    setLocalShifts(initialShifts)
-  }
+  useEffect(() => {
+    if (!saving) setLocalShifts(initialShifts)
+  }, [initialShifts])
 
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
   const days = eachDayOfInterval({ start: weekStartSun, end: addDays(weekStartSun, 6) })
@@ -89,7 +88,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
     } finally {
       setSaving(false)
       setModal(null)
-      setTimeout(onReload, 1500)
+      setTimeout(onReload, 8000)
     }
   }
 
