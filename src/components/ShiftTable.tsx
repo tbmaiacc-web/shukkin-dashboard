@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
@@ -35,10 +35,21 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
   const [locationFilter, setLocationFilter] = useState('全院')
   const [modal, setModal] = useState<ModalState | null>(null)
   const [localShifts, setLocalShifts] = useState<Shift[]>(initialShifts)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const todayRef = useRef<HTMLTableCellElement>(null)
 
   useEffect(() => {
     setLocalShifts(initialShifts)
   }, [initialShifts])
+
+  useEffect(() => {
+    const container = scrollRef.current
+    const cell = todayRef.current
+    if (!container || !cell) return
+    const nameColWidth = 80
+    const target = cell.offsetLeft - nameColWidth - 8
+    container.scrollTo({ left: Math.max(0, target), behavior: 'auto' })
+  }, [])
 
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
   const days = eachDayOfInterval({ start: weekStartSun, end: addDays(weekStartSun, 6) })
@@ -116,7 +127,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
         </select>
       </div>
 
-      <div className="overflow-x-auto">
+      <div ref={scrollRef} className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ minWidth: '520px' }}>
           <thead>
             <tr className="bg-white">
@@ -127,7 +138,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
                 const isToday = isSameDay(d, today)
                 const dow = d.getDay()
                 return (
-                  <th key={i} className={`py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
+                  <th key={i} ref={isToday ? todayRef : undefined} className={`py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
                     isToday ? 'bg-gray-100' : 'bg-white'
                   } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}>
                     <div>{format(d, 'M/d')}</div>
