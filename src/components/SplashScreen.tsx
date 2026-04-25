@@ -31,16 +31,21 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
       className="fixed inset-0 z-[999] bg-white flex flex-col items-center justify-center"
       style={{
         opacity: phase === 'out' ? 0 : 1,
-        transition: 'opacity 0.6s ease',
+        transition: phase === 'out' ? 'opacity 0.55s ease' : 'opacity 0.6s ease',
       }}
     >
-      {/* Navy accent ring that pulses */}
       <div
         className="relative flex items-center justify-center"
         style={{
           opacity: phase === 'in' ? 0 : 1,
-          transform: phase === 'in' ? 'scale(0.82)' : 'scale(1)',
-          transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          transform: phase === 'in'
+            ? 'scale(0.82)'
+            : phase === 'out'
+            ? 'scale(1.18)'
+            : 'scale(1)',
+          transition: phase === 'in'
+            ? 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            : 'opacity 0.55s ease, transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <img
