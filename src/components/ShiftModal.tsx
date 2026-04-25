@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -29,8 +30,12 @@ const SHIFT_OPTIONS = [
 ]
 
 export default function ShiftModal({ date, employeeName, currentShift, onSave, onClose, saving }: Props) {
-  const handleSelect = (val: string) => {
-    onSave(val, '')
+  const [selected, setSelected] = useState(currentShift)
+  const [confirming, setConfirming] = useState(false)
+
+  const handleConfirm = () => {
+    setConfirming(true)
+    setTimeout(() => onSave(selected, ''), 600)
   }
 
   return (
@@ -51,25 +56,34 @@ export default function ShiftModal({ date, employeeName, currentShift, onSave, o
           {format(date, 'M月d日 (E)', { locale: ja })}
         </p>
 
-        {saving ? (
+        {confirming || saving ? (
           <div className="flex items-center justify-center py-8">
             <div className="w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
             <span className="ml-3 text-sm text-gray-500">保存中...</span>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {SHIFT_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => handleSelect(opt.value)}
-                className={`py-3 rounded-2xl text-sm font-semibold border-2 transition-all ${opt.color} ${
-                  currentShift === opt.value ? 'ring-2 ring-offset-1 ring-gray-400 scale-95' : ''
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              {SHIFT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelected(opt.value)}
+                  className={`py-3 rounded-2xl text-sm font-semibold border-2 transition-all ${opt.color} ${
+                    selected === opt.value ? 'ring-2 ring-offset-1 ring-gray-400 scale-95' : ''
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleConfirm}
+              disabled={selected === currentShift}
+              className="w-full py-3 bg-gray-900 text-white text-sm font-semibold rounded-2xl mt-5 disabled:opacity-40"
+            >
+              確定する
+            </button>
+          </>
         )}
       </div>
     </div>
