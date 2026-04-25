@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Search, MapPin, Calendar } from 'lucide-react'
-import { Employee, Shift, NON_WORKING_TYPES, SHIFT_DISPLAY } from '../types'
+import { Employee, Shift, TabName, NON_WORKING_TYPES, SHIFT_DISPLAY } from '../types'
 
 interface Props {
   employees: Employee[]
   shifts: Shift[]
+  onTabChange: (tab: TabName) => void
 }
 
 const today = format(new Date(), 'yyyy-MM-dd')
@@ -18,7 +19,7 @@ function getStatus(emp: Employee, shifts: Shift[]) {
   return { label: '勤務中', working: true }
 }
 
-export default function Dashboard({ employees, shifts }: Props) {
+export default function Dashboard({ employees, shifts, onTabChange }: Props) {
   const [search, setSearch] = useState('')
   const [locationFilter, setLocationFilter] = useState('全院')
 
@@ -46,7 +47,10 @@ export default function Dashboard({ employees, shifts }: Props) {
               {format(new Date(), 'yyyy年M月d日 (E)', { locale: ja })}
             </p>
           </div>
-          <button className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+          <button
+            onClick={() => onTabChange('schedule')}
+            className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center active:opacity-70"
+          >
             <Calendar size={18} className="text-white" />
           </button>
         </div>
