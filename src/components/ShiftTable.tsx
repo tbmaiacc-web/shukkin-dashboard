@@ -110,6 +110,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     await new Promise(r => setTimeout(r, 4000))
     onUpdateShift(dateStr, empName, shiftType, loc, notes)
     await onReload()
+    // onReload() の Promise 解決後も React の再描画が完了するまで
+    // 数フレーム分の余裕を持たせてからモーダルを閉じる
+    await new Promise(r => setTimeout(r, 400))
 
     setModal(null)
     onToast('シフトを保存しました')
@@ -178,9 +181,12 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       )
     )
 
-    // GAS 反映待ち → reload
-    await new Promise(r => setTimeout(r, 4000))
+    // GAS 反映待ち（並列書き込みでも GAS 側は順次処理のため余裕を持たせる）
+    const gasWait = Math.max(4000, cells.length * 500)
+    await new Promise(r => setTimeout(r, gasWait))
     await onReload()
+    // React の再描画が完了するまでのバッファ
+    await new Promise(r => setTimeout(r, 400))
 
     setBulkModalOpen(false)
     exitBulkMode()
