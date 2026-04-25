@@ -7,7 +7,7 @@ interface Props {
   date: Date
   employeeName: string
   currentShift: string
-  onSave: (shiftType: string, notes: string) => void
+  onSave: (shiftType: string, notes: string) => Promise<void> | void
   onClose: () => void
   saving: boolean
 }
@@ -33,9 +33,9 @@ export default function ShiftModal({ date, employeeName, currentShift, onSave, o
   const [selected, setSelected] = useState(currentShift)
   const [confirming, setConfirming] = useState(false)
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setConfirming(true)
-    setTimeout(() => onSave(selected, ''), 600)
+    await onSave(selected, '')
   }
 
   return (

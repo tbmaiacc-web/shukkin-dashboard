@@ -71,26 +71,26 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
     setModal({ date, employee: emp, currentShift: shiftType })
   }
 
-  const handleSave = (shiftType: string, notes: string) => {
+  const handleSave = async (shiftType: string, notes: string) => {
     if (!modal) return
     const dateStr = format(modal.date, 'yyyy-MM-dd')
     const empName = modal.employee.name
     const loc = modal.employee.location
 
-    // 楽観的更新
+    try {
+      if (shiftType === '出勤') {
+        await deleteShift(dateStr, empName)
+      } else {
+        await upsertShift(dateStr, empName, shiftType, loc, notes)
+      }
+    } catch {}
+
     setLocalShifts(prev => {
       const filtered = prev.filter(s => !(s.date === dateStr && s.employeeName === empName))
       if (shiftType === '出勤') return filtered
       return [...filtered, { date: dateStr, employeeName: empName, shiftType, notes, location: loc }]
     })
     setModal(null)
-
-    // 裏側でGASへ保存（UIは待たない）
-    if (shiftType === '出勤') {
-      deleteShift(dateStr, empName).catch(() => {})
-    } else {
-      upsertShift(dateStr, empName, shiftType, loc, notes).catch(() => {})
-    }
   }
 
   return (
