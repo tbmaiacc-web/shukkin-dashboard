@@ -6,6 +6,7 @@ import ShiftTable from './components/ShiftTable'
 import EmployeeList from './components/EmployeeList'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
+import SplashScreen from './components/SplashScreen'
 
 function SkeletonLoading() {
   return (
@@ -44,10 +45,12 @@ function SkeletonLoading() {
 export default function App() {
   const [tab, setTab] = useState<TabName>('schedule')
   const [toast, setToast] = useState<string | null>(null)
+  const [splashDone, setSplashDone] = useState(false)
   const { employees, shifts, loading, error, reload, updateShiftLocal } = useData()
 
   const showToast = (msg: string) => setToast(msg)
 
+  if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />
   if (loading) return <SkeletonLoading />
 
   if (error) {
