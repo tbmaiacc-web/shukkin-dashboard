@@ -9,7 +9,7 @@ import ShiftModal from './ShiftModal'
 interface Props {
   employees: Employee[]
   shifts: Shift[]
-  onReload: () => void
+  onReload: () => Promise<void>
   onUpdateShift: (date: string, employeeName: string, shiftType: string, location: string, notes: string) => void
   onToast: (msg: string) => void
 }
@@ -84,11 +84,12 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       }
     } catch {}
 
-    // GASがスプレッドシートへ反映するまで待機
+    // GASがスプレッドシートへ反映するまで待機してからリロード
+    // await onReload() でデータ取得完了までモーダルのローディングを継続
     await new Promise(r => setTimeout(r, 4000))
-
     onUpdateShift(dateStr, empName, shiftType, loc, notes)
-    onReload()
+    await onReload()
+
     setModal(null)
     onToast('シフトを保存しました')
   }

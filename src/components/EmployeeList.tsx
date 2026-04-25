@@ -8,7 +8,7 @@ import EmployeeModal from './EmployeeModal'
 
 interface Props {
   employees: Employee[]
-  onReload: () => void
+  onReload: () => Promise<void>
 }
 
 export default function EmployeeList({ employees, onReload }: Props) {
