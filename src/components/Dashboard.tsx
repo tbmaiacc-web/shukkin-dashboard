@@ -43,14 +43,16 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
     <div className="pb-20">
       {/* ヘッダー */}
       <div className="bg-white px-4 pt-10 pb-4">
-        <img src="/logo.png" alt="Total Body Make" className="h-10 mb-3" />
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">ダッシュボード</h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {format(selectedDate, 'yyyy年M月d日 (E)', { locale: ja })}
-              {!isToday && <span className="ml-2 text-xs text-blue-500">選択中</span>}
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">ダッシュボード</h1>
+              <p className="text-xs text-gray-400">
+                {format(selectedDate, 'yyyy年M月d日 (E)', { locale: ja })}
+                {!isToday && <span className="ml-2 text-blue-500">選択中</span>}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setCalendarOpen(true)}

@@ -37,12 +37,14 @@ export default function EmployeeList({ employees, onReload }: Props) {
 
   return (
     <div className="pb-20">
-      <div className="bg-white px-4 pt-10 pb-4">
-        <img src="/logo.png" alt="Total Body Make" className="h-10 mb-3" />
-        <h1 className="text-2xl font-bold text-gray-900">従業員管理</h1>
-        <p className="text-sm text-gray-400 mt-0.5">
-          {format(new Date(), 'yyyy年M月d日 (E)', { locale: ja })}
-        </p>
+      <div className="bg-white px-4 pt-10 pb-4 flex items-center gap-3">
+        <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 leading-tight">従業員管理</h1>
+          <p className="text-xs text-gray-400">
+            {format(new Date(), 'yyyy年M月d日 (E)', { locale: ja })}
+          </p>
+        </div>
       </div>
 
       <div className="px-4 py-3 bg-white border-b border-gray-100">
