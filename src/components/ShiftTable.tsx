@@ -90,15 +90,16 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   }
 
   return (
-    <div className="pb-20">
-      <div className="bg-white px-4 pt-12 pb-3">
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
+      {/* 固定ヘッダー */}
+      <div className="bg-white px-4 pt-12 pb-3 flex-none">
         <h1 className="text-2xl font-bold text-gray-900">勤務早見表</h1>
         <p className="text-sm text-gray-400 mt-0.5">
           {format(today, 'yyyy年M月d日 (E)', { locale: ja })}
         </p>
       </div>
 
-      <div className="bg-white px-3 py-2 border-b border-gray-100 flex items-center gap-2">
+      <div className="bg-white px-3 py-2 border-b border-gray-100 flex items-center gap-2 flex-none">
         <div className="flex items-center bg-gray-100 rounded-xl px-2 py-1.5 gap-1 flex-1">
           <button onClick={() => setBaseDate(d => subWeeks(d, 1))} className="p-1 text-gray-500">
             <ChevronLeft size={16} />
@@ -123,20 +124,25 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         </select>
       </div>
 
-      <div ref={scrollRef} className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ minWidth: '520px' }}>
+      {/* スクロール領域（縦横） */}
+      <div ref={scrollRef} className="flex-1 overflow-auto">
+        <table className="border-collapse" style={{ minWidth: '520px' }}>
           <thead>
-            <tr className="bg-white">
-              <th className="text-left px-3 py-2 text-xs text-gray-400 font-normal w-20 border-b border-gray-100 sticky left-0 bg-white z-10">
+            <tr>
+              <th className="sticky top-0 left-0 z-30 bg-white text-left px-3 py-2 text-xs text-gray-400 font-normal w-20 border-b border-gray-100">
                 名前
               </th>
               {days.map((d, i) => {
                 const isToday = isSameDay(d, today)
                 const dow = d.getDay()
                 return (
-                  <th key={i} ref={isToday ? todayRef : undefined} className={`py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
-                    isToday ? 'bg-gray-100' : 'bg-white'
-                  } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}>
+                  <th
+                    key={i}
+                    ref={isToday ? todayRef : undefined}
+                    className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
+                      isToday ? 'bg-gray-100' : 'bg-white'
+                    } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}
+                  >
                     <div>{format(d, 'M/d')}</div>
                     <div>{DOW[dow]}</div>
                   </th>
@@ -148,13 +154,13 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             {grouped.map(({ location, staff }) => (
               <>
                 <tr key={`loc-${location}`}>
-                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky left-0">
+                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky left-0 z-10">
                     {location}
                   </td>
                 </tr>
                 {staff.map(emp => (
                   <tr key={emp.id} className="border-b border-gray-50">
-                    <td className="px-3 py-2 text-sm text-gray-800 font-medium sticky left-0 bg-white z-10 border-r border-gray-100 w-20">
+                    <td className="px-3 py-2 text-sm text-gray-800 font-medium sticky left-0 z-10 bg-white border-r border-gray-100 w-20">
                       {emp.name}
                     </td>
                     {days.map((d, i) => {
