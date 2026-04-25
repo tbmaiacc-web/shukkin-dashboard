@@ -81,7 +81,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       }
     } catch {}
 
+    // GASがスプレッドシートへ反映するまで待機
+    await new Promise(r => setTimeout(r, 4000))
+
     onUpdateShift(dateStr, empName, shiftType, loc, notes)
+    onReload()
     setModal(null)
   }
 
