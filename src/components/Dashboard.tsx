@@ -104,7 +104,9 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
                   <MapPin size={14} className="text-red-400" />
                   <span className="text-sm font-semibold text-gray-700">{location}</span>
                 </div>
-                <span className="text-xs text-gray-400">勤務中 {workingCount}名</span>
+                <span className={`text-xs font-medium ${workingCount < staff.length ? 'text-red-400' : 'text-gray-400'}`}>
+                勤務中 {workingCount}/{staff.length}名
+              </span>
               </div>
               <div className="space-y-2">
                 {staff.map(emp => {

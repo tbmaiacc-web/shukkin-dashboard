@@ -11,6 +11,7 @@ interface Props {
   shifts: Shift[]
   onReload: () => void
   onUpdateShift: (date: string, employeeName: string, shiftType: string, location: string, notes: string) => void
+  onToast: (msg: string) => void
 }
 
 interface ModalState {
@@ -31,7 +32,7 @@ function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
   }
 }
 
-export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift }: Props) {
+export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift, onToast }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
   const [modal, setModal] = useState<ModalState | null>(null)
@@ -87,6 +88,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     onUpdateShift(dateStr, empName, shiftType, loc, notes)
     onReload()
     setModal(null)
+    onToast('シフトを保存しました')
   }
 
   return (
@@ -139,7 +141,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                   <th
                     key={i}
                     ref={isToday ? todayRef : undefined}
-                    className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-11 border-b border-gray-100 ${
+                    className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 ${
                       isToday ? 'bg-gray-100' : 'bg-white'
                     } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}
                   >
@@ -160,8 +162,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                 </tr>
                 {staff.map(emp => (
                   <tr key={emp.id} className="border-b border-gray-50">
-                    <td className="px-3 py-2 text-sm text-gray-800 font-medium sticky left-0 z-10 bg-white border-r border-gray-100 w-20">
-                      {emp.name}
+                    <td className="px-2 py-1.5 sticky left-0 z-10 bg-white border-r border-gray-100 w-20">
+                      <div className="text-sm text-gray-800 font-medium leading-tight">{emp.name}</div>
+                      <div className="text-[10px] text-gray-400 leading-tight mt-0.5">{emp.location.replace('院', '')}</div>
                     </td>
                     {days.map((d, i) => {
                       const isToday = isSameDay(d, today)
