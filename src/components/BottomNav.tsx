@@ -4,34 +4,51 @@ import { TabName } from '../types'
 interface Props {
   active: TabName
   onChange: (tab: TabName) => void
+  badge?: number
 }
 
-export default function BottomNav({ active, onChange }: Props) {
+const TABS: { name: TabName; label: string; Icon: typeof Home }[] = [
+  { name: 'dashboard', label: '概要',   Icon: Home },
+  { name: 'schedule',  label: '早見表', Icon: ClipboardList },
+  { name: 'employees', label: '従業員', Icon: Users },
+]
+
+export default function BottomNav({ active, onChange, badge }: Props) {
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-200 flex items-center h-16 z-50">
-      <button
-        onClick={() => onChange('dashboard')}
-        className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs ${active === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}
-      >
-        <Home size={22} />
-        <span>概要</span>
-      </button>
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-gray-100 flex items-stretch h-16 z-50">
+      {TABS.map(({ name, label, Icon }) => {
+        const isActive = active === name
+        return (
+          <button
+            key={name}
+            onClick={() => onChange(name)}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
+          >
+            {/* Active indicator */}
+            {isActive && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-navy-700 rounded-full" />
+            )}
 
-      <button
-        onClick={() => onChange('schedule')}
-        className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs ${active === 'schedule' ? 'text-blue-600' : 'text-gray-400'}`}
-      >
-        <ClipboardList size={22} />
-        <span>早見表</span>
-      </button>
+            {/* Badge (dashboard only) */}
+            {name === 'dashboard' && badge != null && badge > 0 && (
+              <span className="absolute top-2 left-1/2 ml-2 min-w-[16px] h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
+                {badge > 9 ? '9+' : badge}
+              </span>
+            )}
 
-      <button
-        onClick={() => onChange('employees')}
-        className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs ${active === 'employees' ? 'text-blue-600' : 'text-gray-400'}`}
-      >
-        <Users size={22} />
-        <span>従業員</span>
-      </button>
+            <Icon
+              size={22}
+              className={isActive ? 'text-navy-700' : 'text-gray-400'}
+              strokeWidth={isActive ? 2.2 : 1.8}
+            />
+            <span
+              className={`text-[11px] font-medium ${isActive ? 'text-navy-700' : 'text-gray-400'}`}
+            >
+              {label}
+            </span>
+          </button>
+        )
+      })}
     </nav>
   )
 }

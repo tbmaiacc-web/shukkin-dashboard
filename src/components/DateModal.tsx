@@ -77,9 +77,9 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
                 onClick={() => onSelect(d)}
                 className={`aspect-square rounded-xl text-sm transition-colors ${
                   isSel
-                    ? 'bg-gray-900 text-white font-bold'
+                    ? 'bg-navy-700 text-white font-bold'
                     : isToday
-                    ? 'bg-gray-100 font-bold'
+                    ? 'bg-navy-50 font-bold text-navy-700'
                     : ''
                 } ${
                   !inMonth ? 'text-gray-300' : isSel ? '' :
@@ -94,7 +94,7 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
 
         <button
           onClick={() => onSelect(today)}
-          className="w-full mt-5 py-2.5 text-sm text-gray-700 bg-gray-100 rounded-xl"
+          className="w-full mt-5 py-2.5 text-sm font-semibold text-navy-700 bg-navy-50 rounded-xl"
         >
           今日に戻る
         </button>

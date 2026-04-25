@@ -22,21 +22,60 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
   useEffect(() => {
     if (!animDone || !dataReady) return
     setPhase('out')
-    const t = setTimeout(onDone, 700)
+    const t = setTimeout(onDone, 600)
     return () => clearTimeout(t)
   }, [animDone, dataReady])
 
   return (
     <div
-      className="fixed inset-0 z-[999] bg-white flex items-center justify-center transition-opacity duration-700"
-      style={{ opacity: phase === 'out' ? 0 : 1 }}
+      className="fixed inset-0 z-[999] bg-white flex flex-col items-center justify-center"
+      style={{
+        opacity: phase === 'out' ? 0 : 1,
+        transition: 'opacity 0.6s ease',
+      }}
     >
-      <img
-        src="/logo.png"
-        alt="Total Body Make"
-        className="w-48 transition-opacity duration-700"
-        style={{ opacity: phase === 'in' ? 0 : 1 }}
-      />
+      {/* Navy accent ring that pulses */}
+      <div
+        className="relative flex items-center justify-center"
+        style={{
+          opacity: phase === 'in' ? 0 : 1,
+          transform: phase === 'in' ? 'scale(0.82)' : 'scale(1)',
+          transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+      >
+        <img
+          src="/logo.png"
+          alt="Total Body Make"
+          className="w-52"
+        />
+      </div>
+
+      {/* Loading dots */}
+      <div
+        className="flex gap-1.5 mt-10"
+        style={{
+          opacity: phase === 'in' ? 0 : phase === 'out' ? 0 : 1,
+          transition: 'opacity 0.4s ease 0.3s',
+        }}
+      >
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-navy-700"
+            style={{
+              animation: 'dotPulse 1.2s ease-in-out infinite',
+              animationDelay: `${i * 0.2}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes dotPulse {
+          0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   )
 }

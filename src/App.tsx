@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { TabName } from './types'
+import { useState, useRef } from 'react'
+import { format } from 'date-fns'
+import { TabName, NON_WORKING_TYPES } from './types'
 import { useData } from './hooks/useData'
 import Dashboard from './components/Dashboard'
 import ShiftTable from './components/ShiftTable'
@@ -7,6 +8,8 @@ import EmployeeList from './components/EmployeeList'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import SplashScreen from './components/SplashScreen'
+
+const TAB_ORDER: TabName[] = ['dashboard', 'schedule', 'employees']
 
 function SkeletonLoading() {
   return (
@@ -35,7 +38,7 @@ function SkeletonLoading() {
           </div>
         ))}
       </div>
-      <div className="h-14 bg-white border-t border-gray-100 flex justify-around items-center px-6">
+      <div className="h-16 bg-white border-t border-gray-100 flex justify-around items-center px-6">
         {[...Array(3)].map((_, i) => <div key={i} className="w-12 h-8 bg-gray-100 rounded-xl" />)}
       </div>
     </div>
@@ -46,9 +49,27 @@ export default function App() {
   const [tab, setTab] = useState<TabName>('schedule')
   const [toast, setToast] = useState<string | null>(null)
   const [splashDone, setSplashDone] = useState(false)
+  const [animClass, setAnimClass] = useState('')
+  const animKey = useRef(0)
   const { employees, shifts, loading, error, reload, updateShiftLocal } = useData()
 
   const showToast = (msg: string) => setToast(msg)
+
+  const handleTabChange = (next: TabName) => {
+    if (next === tab) return
+    const from = TAB_ORDER.indexOf(tab)
+    const to = TAB_ORDER.indexOf(next)
+    setAnimClass(to > from ? 'tab-enter-right' : 'tab-enter-left')
+    animKey.current += 1
+    setTab(next)
+  }
+
+  // Today's absence count for badge
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const todayAbsences = employees.filter(emp => {
+    const s = shifts.find(sh => sh.date === todayStr && sh.employeeName === emp.name)
+    return s && NON_WORKING_TYPES.has(s.shiftType)
+  }).length
 
   if (!splashDone) return <SplashScreen dataReady={!loading} onDone={() => setSplashDone(true)} />
   if (loading) return <SkeletonLoading />
@@ -57,9 +78,15 @@ export default function App() {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-gray-50 p-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center space-y-3 max-w-sm w-full">
-          <p className="text-sm font-semibold text-red-500">エラー</p>
-          <p className="text-xs text-gray-500">{error}</p>
-          <button onClick={reload} className="w-full py-2 bg-gray-900 text-white text-sm rounded-xl">
+          <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+            <span className="text-red-400 text-xl">!</span>
+          </div>
+          <p className="text-sm font-semibold text-red-500">エラーが発生しました</p>
+          <p className="text-xs text-gray-400">{error}</p>
+          <button
+            onClick={reload}
+            className="w-full py-2.5 bg-navy-700 text-white text-sm font-semibold rounded-xl"
+          >
             再試行
           </button>
         </div>
@@ -69,18 +96,24 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-gray-50">
-      {tab === 'dashboard' && <Dashboard employees={employees} shifts={shifts} onTabChange={setTab} />}
-      {tab === 'schedule' && (
-        <ShiftTable
-          employees={employees}
-          shifts={shifts}
-          onReload={reload}
-          onUpdateShift={updateShiftLocal}
-          onToast={showToast}
-        />
-      )}
-      {tab === 'employees' && <EmployeeList employees={employees} onReload={reload} />}
-      <BottomNav active={tab} onChange={setTab} />
+      <div key={`${tab}-${animKey.current}`} className={animClass}>
+        {tab === 'dashboard' && (
+          <Dashboard employees={employees} shifts={shifts} onTabChange={handleTabChange} />
+        )}
+        {tab === 'schedule' && (
+          <ShiftTable
+            employees={employees}
+            shifts={shifts}
+            onReload={reload}
+            onUpdateShift={updateShiftLocal}
+            onToast={showToast}
+          />
+        )}
+        {tab === 'employees' && (
+          <EmployeeList employees={employees} onReload={reload} />
+        )}
+      </div>
+      <BottomNav active={tab} onChange={handleTabChange} badge={todayAbsences} />
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )

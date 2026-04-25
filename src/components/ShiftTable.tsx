@@ -38,6 +38,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const todayRef = useRef<HTMLTableCellElement>(null)
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
 
   useEffect(() => {
     const container = scrollRef.current
@@ -91,8 +93,25 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     onToast('シフトを保存しました')
   }
 
+  // Swipe gesture handlers (on nav bar, not scroll area)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
+      if (dx < 0) setBaseDate(d => addWeeks(d, 1))
+      else setBaseDate(d => subWeeks(d, 1))
+    }
+    touchStartX.current = null
+    touchStartY.current = null
+  }
+
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
       {/* 固定ヘッダー */}
       <div className="bg-white px-4 pt-10 pb-2 flex-none flex items-center gap-3">
         <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
@@ -104,20 +123,28 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         </div>
       </div>
 
-      <div className="bg-white px-3 py-2 border-b border-gray-100 flex items-center gap-2 flex-none">
+      {/* 週ナビ（スワイプ対応） */}
+      <div
+        className="bg-white px-3 py-2 border-b border-gray-100 flex items-center gap-2 flex-none"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="flex items-center bg-gray-100 rounded-xl px-2 py-1.5 gap-1 flex-1">
-          <button onClick={() => setBaseDate(d => subWeeks(d, 1))} className="p-1 text-gray-500">
+          <button onClick={() => setBaseDate(d => subWeeks(d, 1))} className="p-1 text-gray-500 active:opacity-50">
             <ChevronLeft size={16} />
           </button>
           <span className="flex-1 text-center text-sm font-semibold text-gray-800">{rangeLabel}</span>
-          <button onClick={() => setBaseDate(d => addWeeks(d, 1))} className="p-1 text-gray-500">
+          <button onClick={() => setBaseDate(d => addWeeks(d, 1))} className="p-1 text-gray-500 active:opacity-50">
             <ChevronRight size={16} />
           </button>
         </div>
-        <button onClick={() => setBaseDate(new Date())} className="px-3 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-xl">
+        <button
+          onClick={() => setBaseDate(new Date())}
+          className="px-3 py-1.5 text-xs font-semibold text-navy-700 bg-navy-50 rounded-xl"
+        >
           今日
         </button>
-        <button onClick={onReload} className="p-1.5 text-gray-500">
+        <button onClick={onReload} className="p-1.5 text-gray-400 active:opacity-50">
           <RefreshCw size={16} />
         </button>
         <select
@@ -138,18 +165,21 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                 名前
               </th>
               {days.map((d, i) => {
-                const isToday = isSameDay(d, today)
+                const isTodayCol = isSameDay(d, today)
                 const dow = d.getDay()
                 return (
                   <th
                     key={i}
-                    ref={isToday ? todayRef : undefined}
+                    ref={isTodayCol ? todayRef : undefined}
                     className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 ${
-                      isToday ? 'bg-gray-100' : 'bg-white'
+                      isTodayCol ? 'bg-navy-50' : 'bg-white'
                     } ${dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'}`}
                   >
                     <div>{format(d, 'M/d')}</div>
                     <div>{DOW[dow]}</div>
+                    {isTodayCol && (
+                      <div className="w-1 h-1 bg-navy-700 rounded-full mx-auto mt-0.5" />
+                    )}
                   </th>
                 )
               })}
@@ -159,7 +189,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             {grouped.map(({ location, staff }) => (
               <>
                 <tr key={`loc-${location}`}>
-                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky left-0 z-10">
+                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-navy-700 bg-navy-50 sticky left-0 z-10">
                     {location}
                   </td>
                 </tr>
@@ -170,14 +200,14 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                       <div className="text-[10px] text-gray-400 leading-tight mt-0.5">{emp.location.replace('院', '')}</div>
                     </td>
                     {days.map((d, i) => {
-                      const isToday = isSameDay(d, today)
+                      const isTodayCol = isSameDay(d, today)
                       const { display, shiftType } = getShiftInfo(emp, d, initialShifts)
                       return (
                         <td
                           key={i}
                           onClick={() => handleCellClick(emp, d, shiftType)}
                           className={`text-center py-2 text-sm font-bold cursor-pointer active:opacity-50 transition-opacity ${display.className} ${
-                            isToday ? 'bg-gray-100' : ''
+                            isTodayCol ? 'bg-navy-50/60' : ''
                           }`}
                         >
                           {display.label}
