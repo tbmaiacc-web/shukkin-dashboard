@@ -1,19 +1,30 @@
 import { useEffect, useState } from 'react'
 
 interface Props {
+  dataReady: boolean
   onDone: () => void
 }
 
-export default function SplashScreen({ onDone }: Props) {
-  // phase: 'in' → 'hold' → 'out' → done
+export default function SplashScreen({ dataReady, onDone }: Props) {
   const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in')
+  const [animDone, setAnimDone] = useState(false)
 
+  // フェードイン → ホールド
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('hold'), 800)   // フェードイン完了
-    const t2 = setTimeout(() => setPhase('out'), 1800)   // ホールド終了
-    const t3 = setTimeout(() => onDone(), 2500)          // フェードアウト完了
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    const t = setTimeout(() => {
+      setPhase('hold')
+      setAnimDone(true)
+    }, 800)
+    return () => clearTimeout(t)
   }, [])
+
+  // アニメ完了 & データ準備完了 → フェードアウト
+  useEffect(() => {
+    if (!animDone || !dataReady) return
+    setPhase('out')
+    const t = setTimeout(onDone, 700)
+    return () => clearTimeout(t)
+  }, [animDone, dataReady])
 
   return (
     <div

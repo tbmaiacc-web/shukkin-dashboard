@@ -50,7 +50,7 @@ export default function App() {
 
   const showToast = (msg: string) => setToast(msg)
 
-  if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />
+  if (!splashDone) return <SplashScreen dataReady={!loading} onDone={() => setSplashDone(true)} />
   if (loading) return <SkeletonLoading />
 
   if (error) {
