@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Search, MapPin, Calendar } from 'lucide-react'
 import { Employee, Shift, TabName, NON_WORKING_TYPES, SHIFT_DISPLAY } from '../types'
+import DateModal from './DateModal'
 
 interface Props {
   employees: Employee[]
@@ -10,18 +11,20 @@ interface Props {
   onTabChange: (tab: TabName) => void
 }
 
-const today = format(new Date(), 'yyyy-MM-dd')
-
-function getStatus(emp: Employee, shifts: Shift[]) {
-  const entry = shifts.find(s => s.date === today && s.employeeName === emp.name)
+function getStatus(emp: Employee, shifts: Shift[], dateStr: string) {
+  const entry = shifts.find(s => s.date === dateStr && s.employeeName === emp.name)
   if (!entry) return { label: '勤務中', working: true }
   if (NON_WORKING_TYPES.has(entry.shiftType)) return { label: entry.shiftType, working: false }
   return { label: '勤務中', working: true }
 }
 
-export default function Dashboard({ employees, shifts, onTabChange }: Props) {
+export default function Dashboard({ employees, shifts, onTabChange: _onTabChange }: Props) {
   const [search, setSearch] = useState('')
   const [locationFilter, setLocationFilter] = useState('全院')
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const dateStr = format(selectedDate, 'yyyy-MM-dd')
+  const isToday = isSameDay(selectedDate, new Date())
 
   const locations = ['全院', ...Array.from(new Set(employees.map(e => e.location))).sort()]
 
@@ -44,11 +47,12 @@ export default function Dashboard({ employees, shifts, onTabChange }: Props) {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ダッシュボード</h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              {format(new Date(), 'yyyy年M月d日 (E)', { locale: ja })}
+              {format(selectedDate, 'yyyy年M月d日 (E)', { locale: ja })}
+              {!isToday && <span className="ml-2 text-xs text-blue-500">選択中</span>}
             </p>
           </div>
           <button
-            onClick={() => onTabChange('schedule')}
+            onClick={() => setCalendarOpen(true)}
             className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center active:opacity-70"
           >
             <Calendar size={18} className="text-white" />
@@ -92,7 +96,7 @@ export default function Dashboard({ employees, shifts, onTabChange }: Props) {
       {/* スタッフリスト */}
       <div className="px-4 py-3 space-y-4">
         {grouped.map(({ location, staff }) => {
-          const workingCount = staff.filter(e => getStatus(e, shifts).working).length
+          const workingCount = staff.filter(e => getStatus(e, shifts, dateStr).working).length
           return (
             <div key={location}>
               <div className="flex items-center justify-between mb-2">
@@ -104,7 +108,7 @@ export default function Dashboard({ employees, shifts, onTabChange }: Props) {
               </div>
               <div className="space-y-2">
                 {staff.map(emp => {
-                  const status = getStatus(emp, shifts)
+                  const status = getStatus(emp, shifts, dateStr)
                   const shift = SHIFT_DISPLAY[status.label]
                   return (
                     <div key={emp.id} className="bg-white rounded-2xl px-4 py-3 flex items-center shadow-sm">
@@ -138,6 +142,14 @@ export default function Dashboard({ employees, shifts, onTabChange }: Props) {
           )
         })}
       </div>
+
+      {calendarOpen && (
+        <DateModal
+          selected={selectedDate}
+          onSelect={d => { setSelectedDate(d); setCalendarOpen(false) }}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
     </div>
   )
 }
