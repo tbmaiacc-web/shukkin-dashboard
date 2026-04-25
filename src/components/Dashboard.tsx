@@ -42,7 +42,8 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
   return (
     <div className="pb-20">
       {/* ヘッダー */}
-      <div className="bg-white px-4 pt-12 pb-4">
+      <div className="bg-white px-4 pt-10 pb-4">
+        <img src="/logo.png" alt="Total Body Make" className="h-10 mb-3" />
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ダッシュボード</h1>

@@ -94,7 +94,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
       {/* 固定ヘッダー */}
-      <div className="bg-white px-4 pt-12 pb-3 flex-none">
+      <div className="bg-white px-4 pt-10 pb-3 flex-none">
+        <img src="/logo.png" alt="Total Body Make" className="h-10 mb-3" />
         <h1 className="text-2xl font-bold text-gray-900">勤務早見表</h1>
         <p className="text-sm text-gray-400 mt-0.5">
           {format(today, 'yyyy年M月d日 (E)', { locale: ja })}
