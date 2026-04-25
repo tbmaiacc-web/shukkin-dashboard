@@ -8,6 +8,7 @@ interface DataState {
   loading: boolean
   error: string | null
   reload: () => void
+  updateShiftLocal: (date: string, employeeName: string, shiftType: string, location: string, notes: string) => void
 }
 
 const CACHE_KEY = 'shukkin_cache'
@@ -79,6 +80,16 @@ export function useData(): DataState {
     reload: () => {
       sessionStorage.removeItem(CACHE_KEY)
       setTick(t => t + 1)
+    },
+    updateShiftLocal: (date, employeeName, shiftType, location, notes) => {
+      setShifts(prev => {
+        const filtered = prev.filter(s => !(s.date === date && s.employeeName === employeeName))
+        const next = shiftType === '出勤'
+          ? filtered
+          : [...filtered, { date, employeeName, shiftType, location, notes }]
+        saveCache(employees, next)
+        return next
+      })
     },
   }
 }

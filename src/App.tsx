@@ -8,7 +8,7 @@ import BottomNav from './components/BottomNav'
 
 export default function App() {
   const [tab, setTab] = useState<TabName>('schedule')
-  const { employees, shifts, loading, error, reload } = useData()
+  const { employees, shifts, loading, error, reload, updateShiftLocal } = useData()
 
   if (loading) {
     return (
@@ -41,7 +41,7 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-gray-50">
       {tab === 'dashboard' && <Dashboard employees={employees} shifts={shifts} />}
-      {tab === 'schedule' && <ShiftTable employees={employees} shifts={shifts} onReload={reload} />}
+      {tab === 'schedule' && <ShiftTable employees={employees} shifts={shifts} onReload={reload} onUpdateShift={updateShiftLocal} />}
       {tab === 'employees' && <EmployeeList employees={employees} onReload={reload} />}
       <BottomNav active={tab} onChange={setTab} />
     </div>

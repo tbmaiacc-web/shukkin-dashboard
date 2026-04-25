@@ -10,6 +10,7 @@ interface Props {
   employees: Employee[]
   shifts: Shift[]
   onReload: () => void
+  onUpdateShift: (date: string, employeeName: string, shiftType: string, location: string, notes: string) => void
 }
 
 interface ModalState {
@@ -30,17 +31,12 @@ function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
   }
 }
 
-export default function ShiftTable({ employees, shifts: initialShifts, onReload }: Props) {
+export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
   const [modal, setModal] = useState<ModalState | null>(null)
-  const [localShifts, setLocalShifts] = useState<Shift[]>(initialShifts)
   const scrollRef = useRef<HTMLDivElement>(null)
   const todayRef = useRef<HTMLTableCellElement>(null)
-
-  useEffect(() => {
-    setLocalShifts(initialShifts)
-  }, [initialShifts])
 
   useEffect(() => {
     const container = scrollRef.current
@@ -85,11 +81,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
       }
     } catch {}
 
-    setLocalShifts(prev => {
-      const filtered = prev.filter(s => !(s.date === dateStr && s.employeeName === empName))
-      if (shiftType === '出勤') return filtered
-      return [...filtered, { date: dateStr, employeeName: empName, shiftType, notes, location: loc }]
-    })
+    onUpdateShift(dateStr, empName, shiftType, loc, notes)
     setModal(null)
   }
 
@@ -163,7 +155,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload 
                     </td>
                     {days.map((d, i) => {
                       const isToday = isSameDay(d, today)
-                      const { display, shiftType } = getShiftInfo(emp, d, localShifts)
+                      const { display, shiftType } = getShiftInfo(emp, d, initialShifts)
                       return (
                         <td
                           key={i}
