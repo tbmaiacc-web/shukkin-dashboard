@@ -27,9 +27,9 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-t-3xl w-full max-w-[430px] p-6"
+        className="relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6"
         style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
         onClick={e => e.stopPropagation()}
       >

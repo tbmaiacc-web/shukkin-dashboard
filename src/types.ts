@@ -3,6 +3,17 @@ export interface Employee {
   name: string
   role: string
   location: string
+  paidLeaveAllotted?: number   // 年間付与日数
+  paidLeaveUsed?: number       // 使用済み日数
+}
+
+export interface HistoryEntry {
+  id: string
+  date: string           // 'yyyy-MM-dd' (シフト対象日)
+  employeeName: string
+  oldShift: string
+  newShift: string
+  changedAt: string      // ISO timestamp
 }
 
 export interface Shift {

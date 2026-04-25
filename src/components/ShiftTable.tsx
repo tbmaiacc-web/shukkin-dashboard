@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check, Clock } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
-import { upsertShift, deleteShift } from '../hooks/useMutation'
+import { upsertShift, deleteShift, addHistory, incrementUsedLeave } from '../hooks/useMutation'
 import ShiftModal from './ShiftModal'
 import BulkShiftModal from './BulkShiftModal'
+import HistoryDrawer from './HistoryDrawer'
 
 interface Props {
   employees: Employee[]
@@ -42,6 +43,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const todayRef = useRef<HTMLTableCellElement>(null)
   const touchStartX = useRef<number | null>(null)
@@ -98,6 +100,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     const dateStr = format(modal.date, 'yyyy-MM-dd')
     const empName = modal.employee.name
     const loc = modal.employee.location
+    const oldShift = modal.currentShift
 
     try {
       if (shiftType === '出勤') {
@@ -105,13 +108,19 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       } else {
         await upsertShift(dateStr, empName, shiftType, loc, notes)
       }
+      // 履歴記録（シフトが実際に変わった時のみ）
+      if (oldShift !== shiftType) {
+        addHistory(dateStr, empName, oldShift, shiftType)
+        // 有休適用時は使用日数をインクリメント
+        if (shiftType === '有休') {
+          incrementUsedLeave(empName)
+        }
+      }
     } catch {}
 
     await new Promise(r => setTimeout(r, 4000))
     onUpdateShift(dateStr, empName, shiftType, loc, notes)
     await onReload()
-    // onReload() の Promise 解決後も React の再描画が完了するまで
-    // 数フレーム分の余裕を持たせてからモーダルを閉じる
     await new Promise(r => setTimeout(r, 400))
 
     setModal(null)
@@ -226,6 +235,16 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             {format(today, 'yyyy年M月d日 (E)', { locale: ja })}
           </p>
         </div>
+        {/* 履歴ボタン */}
+        {!bulkMode && (
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="p-1.5 text-gray-400 hover:text-navy-700 active:opacity-50 transition-colors"
+            title="変更履歴"
+          >
+            <Clock size={18} />
+          </button>
+        )}
         {/* 一括モードトグル */}
         <button
           onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
@@ -445,6 +464,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           onSave={handleBulkSave}
           onClose={() => setBulkModalOpen(false)}
         />
+      )}
+
+      {/* 変更履歴ドロワー */}
+      {historyOpen && (
+        <HistoryDrawer onClose={() => setHistoryOpen(false)} />
       )}
     </div>
   )

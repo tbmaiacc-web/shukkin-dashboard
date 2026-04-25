@@ -102,6 +102,20 @@ export default function EmployeeList({ employees, onReload }: Props) {
                   <p className="font-semibold text-gray-900 text-sm">{emp.name}</p>
                   <p className="text-xs text-gray-400">{emp.role}・{emp.location}</p>
                 </div>
+                {/* 有給残日数バッジ */}
+                {emp.paidLeaveAllotted !== undefined && (
+                  (() => {
+                    const remaining = (emp.paidLeaveAllotted ?? 10) - (emp.paidLeaveUsed ?? 0)
+                    return (
+                      <div className={`flex flex-col items-center mr-2 min-w-[36px] ${
+                        remaining <= 2 ? 'text-red-500' : 'text-green-600'
+                      }`}>
+                        <span className="text-[10px] font-medium leading-none">有休</span>
+                        <span className="text-sm font-bold leading-tight">{remaining}日</span>
+                      </div>
+                    )
+                  })()
+                )}
                 <button
                   onClick={() => setModal(emp)}
                   className="p-1.5 text-gray-300 hover:text-navy-700 active:opacity-50 transition-colors"
