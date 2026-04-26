@@ -25,6 +25,14 @@ body {
   overflow-x: hidden;
 }
 
+@media (min-width: 1024px) {
+  #root {
+    max-width: none;
+    margin: 0;
+    overflow-x: unset;
+  }
+}
+
 /* Tab slide transitions */
 @keyframes slideInFromRight {
   from { transform: translateX(24px); opacity: 0; }
