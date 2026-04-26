@@ -17,19 +17,26 @@ const SHIFT_COLOR: Record<string, string> = {
   '有休':   'bg-green-50 text-green-600',
   '育休':   'bg-teal-50 text-teal-600',
   '産休':   'bg-pink-50 text-pink-500',
-  'アニ休': 'bg-orange-50 text-orange-500',
-  'AMアニ休':'bg-orange-50 text-orange-400',
-  'PMアニ休':'bg-orange-50 text-orange-400',
+  'アニ休':   'bg-orange-50 text-orange-500',
+  'AMアニ休': 'bg-orange-50 text-orange-400',
+  'PMアニ休': 'bg-orange-50 text-orange-400',
   '特別休暇':'bg-violet-50 text-violet-500',
   '研修':   'bg-purple-50 text-purple-600',
   '出張':   'bg-yellow-50 text-yellow-700',
   'バイト': 'bg-gray-100 text-gray-500',
 }
 
+const SHIFT_LABEL: Record<string, string> = {
+  'アニ休':   'アニバーサリー休暇',
+  'AMアニ休': 'AMアニバーサリー',
+  'PMアニ休': 'PMアニバーサリー',
+}
+
 function ShiftBadge({ type }: { type: string }) {
   const cls = SHIFT_COLOR[type] || 'bg-gray-100 text-gray-600'
+  const label = SHIFT_LABEL[type] || type
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${cls}`}>{type}</span>
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${cls}`}>{label}</span>
   )
 }
 
