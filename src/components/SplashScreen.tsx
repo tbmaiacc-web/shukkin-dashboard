@@ -5,34 +5,21 @@ interface Props {
   onDone: () => void
 }
 
-// r=80 の円周
-const RING_C = 2 * Math.PI * 80 // ≈ 502.65
-
-// 背景に漂う小さなパーティクル
-const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
-  id: i,
-  x: Math.random() * 100,
-  delay: Math.random() * 4,
-  dur: 5 + Math.random() * 5,
-  size: 1.5 + Math.random() * 2.5,
-  opacity: 0.08 + Math.random() * 0.18,
-}))
-
 export default function SplashScreen({ dataReady, onDone }: Props) {
   const [phase, setPhase] = useState<'in' | 'hold' | 'out'>('in')
   const [animDone, setAnimDone] = useState(false)
   const [textVisible, setTextVisible] = useState(false)
 
   useEffect(() => {
-    const t0 = setTimeout(() => setTextVisible(true), 500)
-    const t1 = setTimeout(() => { setPhase('hold'); setAnimDone(true) }, 1500)
+    const t0 = setTimeout(() => setTextVisible(true), 400)
+    const t1 = setTimeout(() => { setPhase('hold'); setAnimDone(true) }, 1400)
     return () => { clearTimeout(t0); clearTimeout(t1) }
   }, [])
 
   useEffect(() => {
     if (!animDone || !dataReady) return
-    const t1 = setTimeout(() => setPhase('out'), 200)
-    const t2 = setTimeout(onDone, 1000)
+    const t1 = setTimeout(() => setPhase('out'), 150)
+    const t2 = setTimeout(onDone, 900)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [animDone, dataReady])
 
@@ -43,195 +30,186 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
     <div
       className="fixed inset-0 z-[999] overflow-hidden flex flex-col items-center justify-center select-none"
       style={{
-        background: 'linear-gradient(145deg, #08192e 0%, #1a3a5c 50%, #0c2140 100%)',
+        background: '#111010',
         opacity:    isOut ? 0 : 1,
-        transform:  isOut ? 'scale(1.06)' : 'scale(1)',
+        transform:  isOut ? 'scale(1.04)' : 'scale(1)',
         transition: isOut
-          ? 'opacity 0.75s cubic-bezier(0.4, 0, 0.6, 1), transform 0.75s cubic-bezier(0.4, 0, 0.6, 1)'
+          ? 'opacity 0.6s ease-in, transform 0.6s ease-in'
           : 'none',
       }}
     >
-      {/* ── 背景: グリッドライン ── */}
+      {/* ── 床板ライン（ハードウッドコート） ── */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)
-          `,
-          backgroundSize: '48px 48px',
+          backgroundImage: `repeating-linear-gradient(
+            180deg,
+            transparent 0px,
+            transparent 38px,
+            rgba(255,255,255,0.028) 38px,
+            rgba(255,255,255,0.028) 39px
+          )`,
         }}
       />
 
-      {/* ── 背景: 放射状グロー ── */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(26,58,92,0.9) 0%, transparent 70%)',
-          animation: 'glowPulse 4s ease-in-out infinite',
-        }}
-      />
+      {/* ── 赤いサイドライン（左右） ── */}
+      <div className="absolute inset-y-0 left-0 w-[5px] pointer-events-none"
+        style={{ background: 'linear-gradient(180deg, transparent 10%, #DC2626 40%, #DC2626 60%, transparent 90%)' }} />
+      <div className="absolute inset-y-0 right-0 w-[5px] pointer-events-none"
+        style={{ background: 'linear-gradient(180deg, transparent 10%, #DC2626 40%, #DC2626 60%, transparent 90%)' }} />
 
-      {/* ── 背景: 大きな装飾リング ── */}
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 560, height: 560,
-          border: '1px solid rgba(245,158,11,0.07)',
-          animation: 'slowSpin 24s linear infinite',
-        }}
-      />
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 420, height: 420,
-          border: '1px solid rgba(255,255,255,0.04)',
-          animation: 'slowSpin 18s linear infinite reverse',
-        }}
-      />
-      <div
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 280, height: 280,
-          border: '1px solid rgba(245,158,11,0.05)',
-          animation: 'slowSpin 12s linear infinite',
-        }}
-      />
+      {/* ── コートセンターサークル（大） ── */}
+      <svg
+        className="absolute pointer-events-none"
+        width="480" height="480"
+        style={{ opacity: 0.07 }}
+      >
+        <circle cx="240" cy="240" r="230" fill="none" stroke="white" strokeWidth="1.5" />
+        <line x1="10" y1="240" x2="470" y2="240" stroke="white" strokeWidth="1.5" />
+      </svg>
 
-      {/* ── 背景: 浮遊パーティクル ── */}
-      {PARTICLES.map(p => (
-        <div
-          key={p.id}
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            left: `${p.x}%`,
-            bottom: '-8px',
-            width: p.size,
-            height: p.size,
-            background: 'rgba(245,158,11,0.9)',
-            opacity: p.opacity,
-            boxShadow: `0 0 ${p.size * 2}px rgba(245,158,11,0.5)`,
-            animation: `floatUp ${p.dur}s ${p.delay}s linear infinite`,
-          }}
-        />
-      ))}
+      {/* ── スピードライン（右下から左上） ── */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.06 }}>
+        <line x1="0"   y1="80%"  x2="100%" y2="20%"  stroke="white" strokeWidth="1"/>
+        <line x1="0"   y1="90%"  x2="100%" y2="30%"  stroke="white" strokeWidth="0.5"/>
+        <line x1="0"   y1="70%"  x2="80%"  y2="10%"  stroke="white" strokeWidth="0.5"/>
+      </svg>
+
+      {/* ── オレンジのダイナミックバー（上部アクセント） ── */}
+      <div
+        className="absolute top-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: 4,
+          background: 'linear-gradient(90deg, transparent 0%, #F47B20 30%, #F47B20 70%, transparent 100%)',
+          transform: isIn ? 'scaleX(0)' : 'scaleX(1)',
+          transformOrigin: 'center',
+          transition: 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s',
+        }}
+      />
+      {/* 下部バー */}
+      <div
+        className="absolute bottom-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: 4,
+          background: 'linear-gradient(90deg, transparent 0%, #DC2626 30%, #DC2626 70%, transparent 100%)',
+          transform: isIn ? 'scaleX(0)' : 'scaleX(1)',
+          transformOrigin: 'center',
+          transition: 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.3s',
+        }}
+      />
 
       {/* ── メインコンテンツ ── */}
       <div
         className="relative flex flex-col items-center"
         style={{
           opacity:   isIn ? 0 : 1,
-          transform: isIn  ? 'translateY(24px) scale(0.92)'
-                   : isOut ? 'translateY(-14px) scale(1.04)'
-                   : 'translateY(0) scale(1)',
+          transform: isIn  ? 'translateY(32px)' : isOut ? 'translateY(-12px)' : 'translateY(0)',
           transition: isIn
-            ? 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.34, 1.4, 0.64, 1)'
-            : 'opacity 0.6s ease, transform 0.6s ease',
+            ? 'opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
+            : 'opacity 0.5s ease, transform 0.5s ease',
         }}
       >
-        {/* ロゴエリア */}
-        <div className="relative" style={{ width: 188, height: 188 }}>
+        {/* バスケットボールリング＋ロゴ */}
+        <div className="relative" style={{ width: 200, height: 200 }}>
 
-          {/* 外枠のガイドリング（薄） */}
-          <svg width="188" height="188" className="absolute inset-0">
-            <circle cx="94" cy="94" r="88" fill="none"
-                    stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-          </svg>
-
-          {/* アンバーのアークリング（描画アニメ） */}
-          <svg width="188" height="188" className="absolute inset-0"
-               style={{ transform: 'rotate(-90deg)' }}>
-            <defs>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-            {/* グロー用（太めの影） */}
-            <circle cx="94" cy="94" r="88" fill="none"
-                    stroke="rgba(245,158,11,0.25)" strokeWidth="6"
-                    strokeLinecap="round"
-                    style={{
-                      strokeDasharray: 2 * Math.PI * 88,
-                      strokeDashoffset: isIn ? 2 * Math.PI * 88 : 0,
-                      transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.1s',
-                    }} />
-            {/* メインのアーク */}
-            <circle cx="94" cy="94" r="88" fill="none"
-                    stroke="rgba(245,158,11,0.95)" strokeWidth="1.8"
-                    strokeLinecap="round"
-                    style={{
-                      strokeDasharray: 2 * Math.PI * 88,
-                      strokeDashoffset: isIn ? 2 * Math.PI * 88 : 0,
-                      transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.1s',
-                      filter: 'drop-shadow(0 0 5px rgba(245,158,11,0.9))',
-                    }} />
-          </svg>
-
-          {/* 回転する輝点 */}
-          <div
-            className="absolute inset-0"
-            style={{ animation: 'slowSpin 3s linear infinite' }}
-          >
-            <div
-              className="absolute rounded-full"
+          {/* オレンジのバスケットボール風リング */}
+          <svg width="200" height="200" className="absolute inset-0"
+            style={{ transform: 'rotate(-90deg)' }}>
+            {/* 外周（太め・オレンジ） */}
+            <circle
+              cx="100" cy="100" r="92"
+              fill="none"
+              stroke="#F47B20"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 92 * 0.72} ${2 * Math.PI * 92 * 0.28}`}
+              strokeDashoffset={2 * Math.PI * 92 * 0.07}
               style={{
-                width: 8, height: 8,
-                top: '50%', left: '50%',
-                marginTop: -4 - 88,
-                marginLeft: -4,
-                background: '#f59e0b',
-                boxShadow: '0 0 10px 3px rgba(245,158,11,0.8)',
+                filter: 'drop-shadow(0 0 8px rgba(244,123,32,0.8))',
                 opacity: isIn ? 0 : 1,
-                transition: 'opacity 0.4s ease 0.8s',
+                transition: 'opacity 0.4s ease 0.5s',
               }}
             />
-          </div>
+            {/* 赤のアーク（下部） */}
+            <circle
+              cx="100" cy="100" r="92"
+              fill="none"
+              stroke="#DC2626"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 92 * 0.2} ${2 * Math.PI * 92 * 0.8}`}
+              strokeDashoffset={2 * Math.PI * 92 * -0.65}
+              style={{
+                filter: 'drop-shadow(0 0 6px rgba(220,38,38,0.6))',
+                opacity: isIn ? 0 : 1,
+                transition: 'opacity 0.4s ease 0.6s',
+              }}
+            />
+            {/* バスケットボールの縫い目ライン（細い縦） */}
+            <line x1="100" y1="8" x2="100" y2="192" stroke="rgba(244,123,32,0.15)" strokeWidth="1"/>
+          </svg>
 
           {/* ロゴ画像 */}
-          <div className="absolute inset-0 flex items-center justify-center p-11">
+          <div className="absolute inset-0 flex items-center justify-center p-10">
             <img
               src="/logo.png"
               alt="Total Body Make"
               className="w-full object-contain"
               style={{
-                filter: 'brightness(0) invert(1) drop-shadow(0 0 16px rgba(255,255,255,0.25))',
+                filter: 'brightness(0) invert(1) drop-shadow(0 2px 12px rgba(244,123,32,0.4))',
               }}
             />
           </div>
+
+          {/* コーナードット（バスケットボール感） */}
+          {[0, 90, 180, 270].map(deg => (
+            <div
+              key={deg}
+              className="absolute rounded-full"
+              style={{
+                width: 6, height: 6,
+                top: '50%', left: '50%',
+                marginTop: -3 - 92,
+                marginLeft: -3,
+                background: deg === 0 || deg === 180 ? '#F47B20' : '#DC2626',
+                boxShadow: `0 0 8px 2px ${deg === 0 || deg === 180 ? 'rgba(244,123,32,0.7)' : 'rgba(220,38,38,0.6)'}`,
+                transform: `rotate(${deg}deg) translateY(92px)`,
+                transformOrigin: '3px 95px',
+                opacity: isIn ? 0 : 1,
+                transition: `opacity 0.3s ease ${0.5 + deg / 1000}s`,
+              }}
+            />
+          ))}
         </div>
 
-        {/* テキスト */}
+        {/* テキストエリア */}
         <div
-          className="mt-7 text-center"
+          className="mt-8 text-center"
           style={{
             opacity:   textVisible && !isOut ? 1 : 0,
-            transform: textVisible && !isOut ? 'translateY(0)' : 'translateY(12px)',
-            transition: 'opacity 0.7s ease, transform 0.7s ease',
+            transform: textVisible && !isOut ? 'translateY(0)' : 'translateY(16px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
           }}
         >
           {/* ブランド名 */}
           <p
-            className="text-white font-bold tracking-[0.22em] text-[15px]"
-            style={{ letterSpacing: '0.22em' }}
+            className="font-black tracking-[0.18em] text-white"
+            style={{ fontSize: 20, letterSpacing: '0.18em', textShadow: '0 0 24px rgba(244,123,32,0.3)' }}
           >
             TOTAL BODY MAKE
           </p>
 
-          {/* 区切りライン */}
-          <div
-            className="mx-auto mt-2.5 mb-2.5"
-            style={{
-              height: 1,
-              width: '100%',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.8) 40%, rgba(245,158,11,0.8) 60%, transparent 100%)',
-            }}
-          />
+          {/* 赤いアンダーライン */}
+          <div className="flex items-center gap-2 mt-3 mb-3">
+            <div style={{ flex: 1, height: 2, background: 'rgba(220,38,38,0.5)' }} />
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#F47B20', boxShadow: '0 0 6px #F47B20' }} />
+            <div style={{ flex: 1, height: 2, background: 'rgba(220,38,38,0.5)' }} />
+          </div>
 
           {/* サブタイトル */}
           <p
-            className="text-[11px] font-medium tracking-[0.35em]"
-            style={{ color: 'rgba(245,158,11,0.9)', letterSpacing: '0.35em' }}
+            className="font-bold tracking-[0.3em]"
+            style={{ fontSize: 11, color: 'rgba(244,123,32,0.9)', letterSpacing: '0.3em' }}
           >
             勤 務 管 理 シ ス テ ム
           </p>
@@ -240,44 +218,37 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
 
       {/* ── ボトムプログレスバー ── */}
       <div
-        className="absolute overflow-hidden rounded-full"
+        className="absolute overflow-hidden"
         style={{
-          bottom: 56,
-          width: 120,
-          height: 2,
+          bottom: 52,
+          width: 100,
+          height: 3,
           background: 'rgba(255,255,255,0.08)',
+          borderRadius: 2,
           opacity: isIn ? 0 : isOut ? 0 : 1,
-          transition: 'opacity 0.3s ease 0.6s',
+          transition: 'opacity 0.3s ease 0.5s',
         }}
       >
         <div
           style={{
             height: '100%',
             width: isIn ? '0%' : '100%',
-            background: 'linear-gradient(90deg, rgba(245,158,11,0.5), rgba(245,158,11,1))',
-            boxShadow: '0 0 8px rgba(245,158,11,0.8)',
-            transition: 'width 1.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s',
-            borderRadius: 999,
-          }}
-        />
-        {/* シマーエフェクト */}
-        <div
-          style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
-            animation: 'shimmer 2s ease-in-out infinite 1s',
+            background: 'linear-gradient(90deg, #DC2626, #F47B20)',
+            boxShadow: '0 0 8px rgba(244,123,32,0.8)',
+            transition: 'width 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.2s',
+            borderRadius: 2,
           }}
         />
       </div>
 
-      {/* ── バージョン表示 ── */}
+      {/* ── バージョン ── */}
       <p
-        className="absolute text-[10px] tracking-widest"
+        className="absolute text-[10px] tracking-widest font-medium"
         style={{
-          bottom: 32,
+          bottom: 28,
           color: 'rgba(255,255,255,0.2)',
           opacity: textVisible && !isOut ? 1 : 0,
-          transition: 'opacity 0.6s ease 0.8s',
+          transition: 'opacity 0.5s ease 0.8s',
         }}
       >
         Ver. 2.0
@@ -287,19 +258,6 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
         @keyframes slowSpin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
-        }
-        @keyframes floatUp {
-          0%   { transform: translateY(0)    scale(1);   opacity: inherit; }
-          80%  { transform: translateY(-90vh) scale(0.6); opacity: inherit; }
-          100% { transform: translateY(-100vh) scale(0); opacity: 0; }
-        }
-        @keyframes glowPulse {
-          0%, 100% { opacity: 0.6; }
-          50%       { opacity: 1; }
-        }
-        @keyframes shimmer {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
         }
       `}</style>
     </div>
