@@ -111,8 +111,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       // 履歴記録（シフトが実際に変わった時のみ）
       if (oldShift !== shiftType) {
         addHistory(dateStr, empName, oldShift, shiftType)
-        // 有休適用時は使用日数をインクリメント
-        if (shiftType === '有休') {
+        // 有休・アニバーサリー休暇適用時は使用日数をインクリメント
+        if (['有休', 'アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
           incrementUsedLeave(empName)
         }
       }
@@ -189,6 +189,15 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           : upsertShift(dateStr, empName, shiftType, loc, '')
       )
     )
+
+    // 有休・アニバーサリー休暇の一括適用は従業員ごとに日数カウント
+    if (['有休', 'アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+      const empNames = [...new Set(cells.map(c => c.empName))]
+      empNames.forEach(name => {
+        const count = cells.filter(c => c.empName === name).length
+        for (let i = 0; i < count; i++) incrementUsedLeave(name)
+      })
+    }
 
     // GAS 反映待ち（並列書き込みでも GAS 側は順次処理のため余裕を持たせる）
     const gasWait = Math.max(4000, cells.length * 500)

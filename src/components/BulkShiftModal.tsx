@@ -27,6 +27,13 @@ const SHIFT_OPTIONS = [
 export default function BulkShiftModal({ count, onSave, onClose }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  const handleClose = () => {
+    if (saving) return
+    setClosing(true)
+    setTimeout(onClose, 240)
+  }
 
   const handleConfirm = async () => {
     if (!selected) return
@@ -36,10 +43,10 @@ export default function BulkShiftModal({ count, onSave, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
+      <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
-        className="relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 shadow-2xl overflow-y-auto"
+        className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 shadow-2xl overflow-y-auto ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
         style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))', maxHeight: '80vh' }}
         onClick={e => e.stopPropagation()}
       >
@@ -48,7 +55,7 @@ export default function BulkShiftModal({ count, onSave, onClose }: Props) {
 
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-base font-bold text-gray-900">一括シフト設定</h3>
-          <button onClick={onClose} className="p-1 text-gray-400">
+          <button onClick={handleClose} className="p-1 text-gray-400">
             <X size={20} />
           </button>
         </div>

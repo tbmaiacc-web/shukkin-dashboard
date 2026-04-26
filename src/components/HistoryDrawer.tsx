@@ -43,6 +43,12 @@ function ShiftBadge({ type }: { type: string }) {
 export default function HistoryDrawer({ onClose }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [closing, setClosing] = useState(false)
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(onClose, 240)
+  }
 
   useEffect(() => {
     getHistory(60).then(h => {
@@ -52,10 +58,10 @@ export default function HistoryDrawer({ onClose }: Props) {
   }, [])
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
+      <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
-        className="relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] shadow-2xl flex flex-col"
+        className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] shadow-2xl flex flex-col ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
         style={{ maxHeight: '80vh' }}
         onClick={e => e.stopPropagation()}
       >
@@ -70,7 +76,7 @@ export default function HistoryDrawer({ onClose }: Props) {
             <Clock size={16} className="text-navy-700" />
             <h3 className="text-base font-bold text-gray-900">変更履歴</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400">
+          <button onClick={handleClose} className="p-1 text-gray-400">
             <X size={20} />
           </button>
         </div>

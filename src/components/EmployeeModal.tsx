@@ -14,6 +14,7 @@ const LOCATIONS = ['草加院', 'イオン八潮南院', '上尾院', '前橋院
 
 export default function EmployeeModal({ employee, onSave, onClose, saving }: Props) {
   const isNew = !employee
+  const [closing, setClosing] = useState(false)
   const [form, setForm] = useState<Omit<Employee, 'id'>>({
     name: employee?.name || '',
     role: employee?.role || 'セラピスト',
@@ -22,16 +23,22 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
     paidLeaveUsed: employee?.paidLeaveUsed ?? 0,
   })
 
+  const handleClose = () => {
+    if (saving) return
+    setClosing(true)
+    setTimeout(onClose, 240)
+  }
+
   const handleSave = () => {
     if (!form.name.trim()) return
     onSave({ id: employee?.id || '', ...form })
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
+      <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
-        className="relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 shadow-2xl overflow-y-auto"
+        className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 shadow-2xl overflow-y-auto ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
         style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))', maxHeight: '85vh' }}
         onClick={e => e.stopPropagation()}
       >
@@ -42,7 +49,7 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
           <h3 className="text-base font-bold text-gray-900">
             {isNew ? '従業員を追加' : '従業員を編集'}
           </h3>
-          <button onClick={onClose} className="p-1 text-gray-400"><X size={20} /></button>
+          <button onClick={handleClose} className="p-1 text-gray-400"><X size={20} /></button>
         </div>
 
         {saving ? (

@@ -16,7 +16,18 @@ const DOW = ['日', '月', '火', '水', '木', '金', '土']
 
 export default function DateModal({ selected, onSelect, onClose }: Props) {
   const [base, setBase] = useState(selected)
+  const [closing, setClosing] = useState(false)
   const today = new Date()
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(onClose, 240)
+  }
+
+  const handleSelect = (d: Date) => {
+    setClosing(true)
+    setTimeout(() => onSelect(d), 240)
+  }
 
   const monthStart = startOfMonth(base)
   const monthEnd = endOfMonth(base)
@@ -26,16 +37,16 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
   })
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
+      <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
-        className="relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6"
+        className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
         style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold text-gray-900">日付を選択</h3>
-          <button onClick={onClose} className="p-1 text-gray-400">
+          <button onClick={handleClose} className="p-1 text-gray-400">
             <X size={20} />
           </button>
         </div>
@@ -74,7 +85,7 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
             return (
               <button
                 key={d.toISOString()}
-                onClick={() => onSelect(d)}
+                onClick={() => handleSelect(d)}
                 className={`aspect-square rounded-xl text-sm transition-colors ${
                   isSel
                     ? 'bg-navy-700 text-white font-bold'
@@ -93,7 +104,7 @@ export default function DateModal({ selected, onSelect, onClose }: Props) {
         </div>
 
         <button
-          onClick={() => onSelect(today)}
+          onClick={() => handleSelect(today)}
           className="w-full mt-5 py-2.5 text-sm font-semibold text-navy-700 bg-navy-50 rounded-xl"
         >
           今日に戻る
