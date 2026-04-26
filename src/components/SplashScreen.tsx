@@ -58,7 +58,7 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
         <img
           src="/logo.png"
           alt="Total Body Make"
-          style={{ width: 140, objectFit: 'contain' }}
+          style={{ width: 220, objectFit: 'contain' }}
         />
       </div>
 
