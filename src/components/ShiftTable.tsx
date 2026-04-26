@@ -4,6 +4,7 @@ import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, CalendarDays, Pencil } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
 import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
+import DraftShiftPicker from './DraftShiftPicker'
 import HistoryDrawer from './HistoryDrawer'
 
 interface Props {
@@ -22,13 +23,14 @@ interface DraftChange {
   originalShift: string
 }
 
-const DOW = ['日', '月', '火', '水', '木', '金', '土']
+interface PickerState {
+  emp: Employee
+  date: Date
+  currentShift: string
+  originalShift: string
+}
 
-// セルタップで順番に切り替わるシフト種類
-const SHIFT_CYCLE = [
-  '出勤', '公休', '有休', 'アニ休', 'AMアニ休', 'PMアニ休',
-  'AM公休', 'PM公休', '育休', '産休', '特別休暇', '研修', '出張', 'バイト',
-]
+const DOW = ['日', '月', '火', '水', '木', '金', '土']
 
 const cellKey = (empName: string, dateStr: string) => `${empName}||${dateStr}`
 
@@ -48,6 +50,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [viewWeeks, setViewWeeks] = useState<1 | 2>(1)
   const [draftMode, setDraftMode] = useState(false)
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
+  const [picker, setPicker] = useState<PickerState | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -84,36 +87,39 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[days.length - 1], 'M/d')}`
 
   // ──────────────────────────────
-  // 下書きモード: セルタップでトグル
+  // 下書きモード: セルタップでピッカー表示
   // ──────────────────────────────
   const handleCellClick = (emp: Employee, date: Date) => {
     if (!draftMode) return
-
     const dateStr = format(date, 'yyyy-MM-dd')
     const key = cellKey(emp.name, dateStr)
     const { shiftType: originalShift } = getShiftInfo(emp, date, initialShifts)
+    const currentDraft = draftChanges.get(key)
+    const currentShift = currentDraft ? currentDraft.shiftType : originalShift
+    setPicker({ emp, date, currentShift, originalShift })
+  }
+
+  const handlePickerSelect = (shiftType: string) => {
+    if (!picker) return
+    const dateStr = format(picker.date, 'yyyy-MM-dd')
+    const key = cellKey(picker.emp.name, dateStr)
 
     setDraftChanges(prev => {
       const next = new Map(prev)
-      const currentDraft = next.get(key)
-      const currentShift = currentDraft ? currentDraft.shiftType : originalShift
-
-      const idx = SHIFT_CYCLE.indexOf(currentShift)
-      const nextShift = SHIFT_CYCLE[(idx + 1) % SHIFT_CYCLE.length]
-
-      if (nextShift === originalShift) {
-        next.delete(key) // 元に戻った → 下書き削除
+      if (shiftType === picker.originalShift) {
+        next.delete(key) // 元に戻した → 下書き削除
       } else {
         next.set(key, {
-          employeeName: emp.name,
+          employeeName: picker.emp.name,
           dateStr,
-          shiftType: nextShift,
-          location: emp.location,
-          originalShift,
+          shiftType,
+          location: picker.emp.location,
+          originalShift: picker.originalShift,
         })
       }
       return next
     })
+    setPicker(null)
   }
 
   const exitDraftMode = () => {
@@ -406,6 +412,18 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             変更確定 {draftCount}件
           </button>
         </div>
+      )}
+
+      {/* シフト種類ピッカー（下書きモード） */}
+      {picker && (
+        <DraftShiftPicker
+          employeeName={picker.emp.name}
+          date={format(picker.date, 'M月d日 (E)', { locale: ja })}
+          currentShift={picker.currentShift}
+          originalShift={picker.originalShift}
+          onSelect={handlePickerSelect}
+          onClose={() => setPicker(null)}
+        />
       )}
 
       {/* 変更履歴ドロワー */}
