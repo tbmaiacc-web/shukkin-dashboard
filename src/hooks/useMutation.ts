@@ -86,9 +86,10 @@ export async function incrementUsedLeave(employeeName: string): Promise<void> {
 
 // ─── アニバーサリー休暇残日数更新 ────────────────────────
 
-export async function incrementUsedAnniversaryLeave(employeeName: string): Promise<void> {
+// amount: 1=全日, 0.5=半日（AM/PM）
+export async function incrementUsedAnniversaryLeave(employeeName: string, amount: number = 1): Promise<void> {
   try {
-    await gasGet({ action: 'incrementUsedAnniversaryLeave', employeeName })
+    await gasGet({ action: 'incrementUsedAnniversaryLeave', employeeName, amount: String(amount) })
   } catch {}
 }
 

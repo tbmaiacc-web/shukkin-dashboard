@@ -629,11 +629,14 @@ function incrementUsedAnniversaryLeave(data) {
   const nameIdx = headers.indexOf('name');
   const usedIdx = headers.indexOf('anniversaryLeaveUsed');
   if (nameIdx < 0 || usedIdx < 0) return { ok: false, error: 'anniversaryLeaveUsed column not found' };
+  // amount: 1=全日, 0.5=AM/PM半日
+  var amount = parseFloat(data.amount) || 1;
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][nameIdx]).trim() === String(data.employeeName || '').trim()) {
       var current = Number(rows[i][usedIdx]) || 0;
-      sheet.getRange(i + 1, usedIdx + 1).setValue(current + 1);
-      return { ok: true, newValue: current + 1 };
+      var newVal = Math.round((current + amount) * 10) / 10; // 浮動小数点誤差回避
+      sheet.getRange(i + 1, usedIdx + 1).setValue(newVal);
+      return { ok: true, newValue: newVal };
     }
   }
   return { ok: false, error: 'Employee not found' };

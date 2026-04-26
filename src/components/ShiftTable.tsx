@@ -115,9 +115,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         if (shiftType === '有休') {
           incrementUsedLeave(empName)
         }
-        // アニバーサリー休暇適用時はアニバーサリー使用日数をインクリメント
-        if (['アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
-          incrementUsedAnniversaryLeave(empName)
+        // アニバーサリー休暇適用時はアニバーサリー使用日数をインクリメント（AM/PMは0.5日）
+        if (shiftType === 'アニ休') {
+          incrementUsedAnniversaryLeave(empName, 1)
+        } else if (['AMアニ休', 'PMアニ休'].includes(shiftType)) {
+          incrementUsedAnniversaryLeave(empName, 0.5)
         }
       }
     } catch {}
@@ -202,12 +204,13 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         for (let i = 0; i < count; i++) incrementUsedLeave(name)
       })
     }
-    // アニバーサリー休暇の一括適用は従業員ごとにアニバーサリー使用日数カウント
+    // アニバーサリー休暇の一括適用（AM/PMは0.5日）
     if (['アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+      const amount = ['AMアニ休', 'PMアニ休'].includes(shiftType) ? 0.5 : 1
       const empNames = [...new Set(cells.map(c => c.empName))]
       empNames.forEach(name => {
         const count = cells.filter(c => c.empName === name).length
-        for (let i = 0; i < count; i++) incrementUsedAnniversaryLeave(name)
+        for (let i = 0; i < count; i++) incrementUsedAnniversaryLeave(name, amount)
       })
     }
 

@@ -38,7 +38,7 @@ export function useData(): DataState {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (silent = false) => {
     if (!GAS_URL) {
       const mock = await import('../mockData')
       setEmployees(mock.MOCK_EMPLOYEES)
@@ -47,8 +47,10 @@ export function useData(): DataState {
       return
     }
 
-    setLoading(true)
-    setError(null)
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
 
     try {
       const r = await fetch(`${GAS_URL}?action=all`)
@@ -57,9 +59,9 @@ export function useData(): DataState {
       setShifts(data.shifts || [])
       saveCache(data.employees || [], data.shifts || [])
     } catch (e: any) {
-      setError(`データ取得エラー: ${e.message}`)
+      if (!silent) setError(`データ取得エラー: ${e.message}`)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -82,7 +84,7 @@ export function useData(): DataState {
     error,
     reload: () => {
       sessionStorage.removeItem(CACHE_KEY)
-      return fetchAll()
+      return fetchAll(true) // silent: UIをアンマウントせずバックグラウンド更新
     },
     updateShiftLocal: (date, employeeName, shiftType, location, notes) => {
       setShifts(prev => {
