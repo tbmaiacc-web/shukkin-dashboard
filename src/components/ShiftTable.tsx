@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check, Clock, CalendarDays } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
 import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
 import ShiftModal from './ShiftModal'
@@ -39,6 +39,7 @@ function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
 export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift, onToast }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
+  const [viewWeeks, setViewWeeks] = useState<1 | 2>(1)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
@@ -58,13 +59,16 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     container.scrollTo({ left: Math.max(0, target), behavior: 'auto' })
   }, [])
 
-  // 週が変わったら選択クリア
+  // 週/表示期間が変わったら選択クリア
   useEffect(() => {
     setSelectedCells(new Set())
-  }, [baseDate])
+  }, [baseDate, viewWeeks])
 
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
-  const days = eachDayOfInterval({ start: weekStartSun, end: addDays(weekStartSun, 6) })
+  const days = eachDayOfInterval({
+    start: weekStartSun,
+    end: addDays(weekStartSun, viewWeeks * 7 - 1),
+  })
   const today = new Date()
   const locations = ['全院', ...Array.from(new Set(employees.map(e => e.location))).sort()]
 
@@ -77,7 +81,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     staff: filteredEmployees.filter(e => e.location === loc),
   }))
 
-  const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[6], 'M/d')}`
+  const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[days.length - 1], 'M/d')}`
 
   // ──────────────────────────────
   // 通常入力
@@ -238,8 +242,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = e.changedTouches[0].clientY - touchStartY.current
     if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
-      if (dx < 0) setBaseDate(d => addWeeks(d, 1))
-      else setBaseDate(d => subWeeks(d, 1))
+      if (dx < 0) setBaseDate(d => addWeeks(d, viewWeeks))
+      else setBaseDate(d => subWeeks(d, viewWeeks))
     }
     touchStartX.current = null
     touchStartY.current = null
@@ -299,11 +303,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         onTouchEnd={handleTouchEnd}
       >
         <div className="flex items-center bg-gray-100 rounded-xl px-2 py-1.5 gap-1 flex-1">
-          <button onClick={() => setBaseDate(d => subWeeks(d, 1))} className="p-1 text-gray-500 active:opacity-50">
+          <button onClick={() => setBaseDate(d => subWeeks(d, viewWeeks))} className="p-1 text-gray-500 active:opacity-50">
             <ChevronLeft size={16} />
           </button>
           <span className="flex-1 text-center text-sm font-semibold text-gray-800">{rangeLabel}</span>
-          <button onClick={() => setBaseDate(d => addWeeks(d, 1))} className="p-1 text-gray-500 active:opacity-50">
+          <button onClick={() => setBaseDate(d => addWeeks(d, viewWeeks))} className="p-1 text-gray-500 active:opacity-50">
             <ChevronRight size={16} />
           </button>
         </div>
@@ -325,9 +329,30 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         </select>
       </div>
 
+      {/* 表示週数切り替えバー */}
+      <div className="bg-white px-3 pb-2 flex-none flex items-center gap-2">
+        <CalendarDays size={13} className="text-gray-400 shrink-0" />
+        <span className="text-xs text-gray-400 mr-1">表示期間</span>
+        <div className="flex bg-gray-100 rounded-xl p-0.5">
+          {([1, 2] as const).map(w => (
+            <button
+              key={w}
+              onClick={() => setViewWeeks(w)}
+              className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition-colors ${
+                viewWeeks === w
+                  ? 'bg-white text-navy-700 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              {w}週
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* スクロール領域 */}
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <table className="border-collapse" style={{ minWidth: '520px' }}>
+        <table className="border-collapse" style={{ minWidth: `${80 + days.length * 48}px` }}>
           <thead>
             <tr>
               {/* 名前列ヘッダー */}
@@ -342,6 +367,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                 const dateStr = format(d, 'yyyy-MM-dd')
                 const colKeys = filteredEmployees.map(emp => cellKey(emp.name, dateStr))
                 const colAllSelected = bulkMode && colKeys.length > 0 && colKeys.every(k => selectedCells.has(k))
+                // 2週表示時: 8日目（第2週開始）に左ボーダーで区切り
+                const isWeekBoundary = viewWeeks === 2 && i === 7
 
                 return (
                   <th
@@ -349,6 +376,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                     ref={isTodayCol ? todayRef : undefined}
                     onClick={bulkMode ? () => toggleColumn(d) : undefined}
                     className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 transition-colors ${
+                      isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
+                    } ${
                       bulkMode ? 'cursor-pointer active:opacity-60' : ''
                     } ${
                       colAllSelected
@@ -376,7 +405,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             {grouped.map(({ location, staff }) => (
               <>
                 <tr key={`loc-${location}`}>
-                  <td colSpan={8} className="px-3 py-1.5 text-xs font-semibold text-navy-700 bg-navy-50 sticky left-0 z-10">
+                  <td colSpan={days.length + 1} className="px-3 py-1.5 text-xs font-semibold text-navy-700 bg-navy-50 sticky left-0 z-10">
                     {location}
                   </td>
                 </tr>
@@ -413,12 +442,15 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                         const { display, shiftType } = getShiftInfo(emp, d, initialShifts)
                         const key = cellKey(emp.name, dateStr)
                         const isSelected = selectedCells.has(key)
+                        const isWeekBoundary = viewWeeks === 2 && i === 7
 
                         return (
                           <td
                             key={i}
                             onClick={() => handleCellClick(emp, d, shiftType)}
                             className={`relative text-center py-2 text-sm font-bold cursor-pointer transition-all ${
+                              isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
+                            } ${
                               isSelected
                                 ? 'bg-navy-700 text-white'
                                 : `${display.className} ${isTodayCol ? 'bg-navy-50/60' : ''}`
