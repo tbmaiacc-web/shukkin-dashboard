@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check, Clock, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, CalendarDays, Pencil } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
 import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
-import ShiftModal from './ShiftModal'
-import BulkShiftModal from './BulkShiftModal'
 import HistoryDrawer from './HistoryDrawer'
 
 interface Props {
@@ -16,13 +14,21 @@ interface Props {
   onToast: (msg: string) => void
 }
 
-interface ModalState {
-  date: Date
-  employee: Employee
-  currentShift: string
+interface DraftChange {
+  employeeName: string
+  dateStr: string
+  shiftType: string
+  location: string
+  originalShift: string
 }
 
 const DOW = ['日', '月', '火', '水', '木', '金', '土']
+
+// セルタップで順番に切り替わるシフト種類
+const SHIFT_CYCLE = [
+  '出勤', '公休', '有休', 'アニ休', 'AMアニ休', 'PMアニ休',
+  'AM公休', 'PM公休', '育休', '産休', '特別休暇', '研修', '出張', 'バイト',
+]
 
 const cellKey = (empName: string, dateStr: string) => `${empName}||${dateStr}`
 
@@ -40,10 +46,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
   const [viewWeeks, setViewWeeks] = useState<1 | 2>(1)
-  const [modal, setModal] = useState<ModalState | null>(null)
-  const [bulkMode, setBulkMode] = useState(false)
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
-  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [draftMode, setDraftMode] = useState(false)
+  const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
+  const [confirming, setConfirming] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const todayRef = useRef<HTMLTableCellElement>(null)
@@ -58,11 +63,6 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     const target = cell.offsetLeft - nameColWidth - 8
     container.scrollTo({ left: Math.max(0, target), behavior: 'auto' })
   }, [])
-
-  // 週/表示期間が変わったら選択クリア
-  useEffect(() => {
-    setSelectedCells(new Set())
-  }, [baseDate, viewWeeks])
 
   const weekStartSun = startOfWeek(baseDate, { weekStartsOn: 0 })
   const days = eachDayOfInterval({
@@ -84,150 +84,82 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[days.length - 1], 'M/d')}`
 
   // ──────────────────────────────
-  // 通常入力
+  // 下書きモード: セルタップでトグル
   // ──────────────────────────────
-  const handleCellClick = (emp: Employee, date: Date, shiftType: string) => {
-    if (bulkMode) {
-      const key = cellKey(emp.name, format(date, 'yyyy-MM-dd'))
-      setSelectedCells(prev => {
-        const next = new Set(prev)
-        next.has(key) ? next.delete(key) : next.add(key)
-        return next
-      })
-      return
-    }
-    setModal({ date, employee: emp, currentShift: shiftType })
-  }
+  const handleCellClick = (emp: Employee, date: Date) => {
+    if (!draftMode) return
 
-  const handleSave = async (shiftType: string, notes: string) => {
-    if (!modal) return
-    const dateStr = format(modal.date, 'yyyy-MM-dd')
-    const empName = modal.employee.name
-    const loc = modal.employee.location
-    const oldShift = modal.currentShift
-
-    try {
-      if (shiftType === '出勤') {
-        await deleteShift(dateStr, empName)
-      } else {
-        await upsertShift(dateStr, empName, shiftType, loc, notes)
-      }
-      // 履歴記録（シフトが実際に変わった時のみ）
-      if (oldShift !== shiftType) {
-        addHistory(dateStr, empName, oldShift, shiftType)
-        // 有休適用時は有給使用日数をインクリメント
-        if (shiftType === '有休') {
-          incrementUsedLeave(empName)
-        }
-        // アニバーサリー休暇適用時はアニバーサリー使用日数をインクリメント（AM/PMは0.5日）
-        if (shiftType === 'アニ休') {
-          incrementUsedAnniversaryLeave(empName, 1)
-        } else if (['AMアニ休', 'PMアニ休'].includes(shiftType)) {
-          incrementUsedAnniversaryLeave(empName, 0.5)
-        }
-      }
-    } catch {}
-
-    await new Promise(r => setTimeout(r, 4000))
-    onUpdateShift(dateStr, empName, shiftType, loc, notes)
-    await onReload()
-    await new Promise(r => setTimeout(r, 400))
-
-    setModal(null)
-    onToast('シフトを保存しました')
-  }
-
-  // ──────────────────────────────
-  // 一括入力
-  // ──────────────────────────────
-
-  // 列（日付）を全選択/解除
-  const toggleColumn = useCallback((date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd')
-    const keys = filteredEmployees.map(emp => cellKey(emp.name, dateStr))
-    setSelectedCells(prev => {
-      const next = new Set(prev)
-      const allSelected = keys.every(k => next.has(k))
-      if (allSelected) {
-        keys.forEach(k => next.delete(k))
+    const key = cellKey(emp.name, dateStr)
+    const { shiftType: originalShift } = getShiftInfo(emp, date, initialShifts)
+
+    setDraftChanges(prev => {
+      const next = new Map(prev)
+      const currentDraft = next.get(key)
+      const currentShift = currentDraft ? currentDraft.shiftType : originalShift
+
+      const idx = SHIFT_CYCLE.indexOf(currentShift)
+      const nextShift = SHIFT_CYCLE[(idx + 1) % SHIFT_CYCLE.length]
+
+      if (nextShift === originalShift) {
+        next.delete(key) // 元に戻った → 下書き削除
       } else {
-        keys.forEach(k => next.add(k))
+        next.set(key, {
+          employeeName: emp.name,
+          dateStr,
+          shiftType: nextShift,
+          location: emp.location,
+          originalShift,
+        })
       }
       return next
     })
-  }, [filteredEmployees])
-
-  // 行（スタッフ）を全選択/解除
-  const toggleRow = useCallback((emp: Employee) => {
-    const keys = days.map(d => cellKey(emp.name, format(d, 'yyyy-MM-dd')))
-    setSelectedCells(prev => {
-      const next = new Set(prev)
-      const allSelected = keys.every(k => next.has(k))
-      if (allSelected) {
-        keys.forEach(k => next.delete(k))
-      } else {
-        keys.forEach(k => next.add(k))
-      }
-      return next
-    })
-  }, [days])
-
-  const exitBulkMode = () => {
-    setBulkMode(false)
-    setSelectedCells(new Set())
-    setBulkModalOpen(false)
   }
 
-  // 一括保存
-  const handleBulkSave = async (shiftType: string) => {
-    const cells = Array.from(selectedCells).map(key => {
-      const [empName, dateStr] = key.split('||')
-      const emp = employees.find(e => e.name === empName)
-      return { empName, dateStr, loc: emp?.location ?? '' }
-    })
+  const exitDraftMode = () => {
+    setDraftMode(false)
+    setDraftChanges(new Map())
+  }
 
-    // ローカル即時反映
-    cells.forEach(({ empName, dateStr, loc }) => {
-      onUpdateShift(dateStr, empName, shiftType, loc, '')
-    })
+  // ──────────────────────────────
+  // 変更確定: 一括送信
+  // ──────────────────────────────
+  const handleConfirm = async () => {
+    if (draftChanges.size === 0 || confirming) return
+    setConfirming(true)
 
-    // GAS 並列書き込み
+    const changes = Array.from(draftChanges.values())
+
+    // 1. ローカル即時反映
+    changes.forEach(c => onUpdateShift(c.dateStr, c.employeeName, c.shiftType, c.location, ''))
+
+    // 2. 下書きモード終了（UIをすぐ通常に戻す）
+    setDraftMode(false)
+    setDraftChanges(new Map())
+
+    // 3. GAS に並列送信
     await Promise.allSettled(
-      cells.map(({ empName, dateStr, loc }) =>
-        shiftType === '出勤'
-          ? deleteShift(dateStr, empName)
-          : upsertShift(dateStr, empName, shiftType, loc, '')
+      changes.map(c =>
+        c.shiftType === '出勤'
+          ? deleteShift(c.dateStr, c.employeeName)
+          : upsertShift(c.dateStr, c.employeeName, c.shiftType, c.location, '')
       )
     )
 
-    // 有休の一括適用は従業員ごとに有給使用日数カウント
-    if (shiftType === '有休') {
-      const empNames = [...new Set(cells.map(c => c.empName))]
-      empNames.forEach(name => {
-        const count = cells.filter(c => c.empName === name).length
-        for (let i = 0; i < count; i++) incrementUsedLeave(name)
+    // 4. 履歴・有給残処理（変わった分のみ）
+    changes
+      .filter(c => c.shiftType !== c.originalShift)
+      .forEach(c => {
+        addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType)
+        if (c.shiftType === '有休') incrementUsedLeave(c.employeeName)
+        if (c.shiftType === 'アニ休') incrementUsedAnniversaryLeave(c.employeeName, 1)
+        if (['AMアニ休', 'PMアニ休'].includes(c.shiftType)) incrementUsedAnniversaryLeave(c.employeeName, 0.5)
       })
-    }
-    // アニバーサリー休暇の一括適用（AM/PMは0.5日）
-    if (['アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
-      const amount = ['AMアニ休', 'PMアニ休'].includes(shiftType) ? 0.5 : 1
-      const empNames = [...new Set(cells.map(c => c.empName))]
-      empNames.forEach(name => {
-        const count = cells.filter(c => c.empName === name).length
-        for (let i = 0; i < count; i++) incrementUsedAnniversaryLeave(name, amount)
-      })
-    }
 
-    // GAS 反映待ち（並列書き込みでも GAS 側は順次処理のため余裕を持たせる）
-    const gasWait = Math.max(4000, cells.length * 500)
-    await new Promise(r => setTimeout(r, gasWait))
+    // 5. サイレントリロード
     await onReload()
-    // React の再描画が完了するまでのバッファ
-    await new Promise(r => setTimeout(r, 400))
-
-    setBulkModalOpen(false)
-    exitBulkMode()
-    onToast(`${cells.length}件のシフトを保存しました`)
+    setConfirming(false)
+    onToast(`${changes.length}件のシフトを更新しました`)
   }
 
   // ──────────────────────────────
@@ -249,7 +181,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     touchStartY.current = null
   }
 
-  const selectedCount = selectedCells.size
+  const draftCount = draftChanges.size
 
   return (
     <div className="flex flex-col h-[calc(100dvh-64px)] lg:h-dvh">
@@ -263,8 +195,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             {format(today, 'yyyy年M月d日 (E)', { locale: ja })}
           </p>
         </div>
-        {/* 履歴ボタン */}
-        {!bulkMode && (
+
+        {/* 履歴ボタン（変更モード外のみ） */}
+        {!draftMode && (
           <button
             onClick={() => setHistoryOpen(true)}
             className="p-1.5 text-gray-400 hover:text-navy-700 active:opacity-50 transition-colors"
@@ -273,26 +206,30 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
             <Clock size={18} />
           </button>
         )}
-        {/* 一括モードトグル */}
+
+        {/* シフト変更ボタン */}
         <button
-          onClick={() => bulkMode ? exitBulkMode() : setBulkMode(true)}
+          onClick={() => draftMode ? exitDraftMode() : setDraftMode(true)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-            bulkMode
-              ? 'bg-navy-700 text-white'
+            draftMode
+              ? 'bg-amber-500 text-white'
               : 'bg-gray-100 text-gray-600'
           }`}
         >
-          {bulkMode ? <X size={13} /> : <Layers size={13} />}
-          {bulkMode ? '完了' : '一括'}
+          {draftMode ? <X size={13} /> : <Pencil size={13} />}
+          {draftMode ? 'キャンセル' : 'シフト変更'}
         </button>
       </div>
 
-      {/* 一括モードヒント */}
-      {bulkMode && (
-        <div className="bg-navy-50 border-b border-navy-100 px-4 py-1.5 flex-none">
-          <p className="text-xs text-navy-700 font-medium">
-            セルをタップして選択 ／ 日付ヘッダーで列一括 ／ 名前で行一括
+      {/* 変更モードヒントバー */}
+      {draftMode && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-1.5 flex-none flex items-center justify-between">
+          <p className="text-xs text-amber-700 font-medium">
+            セルをタップするたびにシフト種類が切り替わります
           </p>
+          {draftCount > 0 && (
+            <span className="text-xs font-bold text-amber-600">{draftCount}件変更中</span>
+          )}
         </div>
       )}
 
@@ -355,44 +292,28 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         <table className="border-collapse" style={{ minWidth: `${80 + days.length * 48}px` }}>
           <thead>
             <tr>
-              {/* 名前列ヘッダー */}
               <th className="sticky top-0 left-0 z-30 bg-white text-left px-3 py-2 text-xs text-gray-400 font-normal w-20 border-b border-gray-100">
                 名前
               </th>
-
-              {/* 日付列ヘッダー */}
               {days.map((d, i) => {
                 const isTodayCol = isSameDay(d, today)
                 const dow = d.getDay()
-                const dateStr = format(d, 'yyyy-MM-dd')
-                const colKeys = filteredEmployees.map(emp => cellKey(emp.name, dateStr))
-                const colAllSelected = bulkMode && colKeys.length > 0 && colKeys.every(k => selectedCells.has(k))
-                // 2週表示時: 8日目（第2週開始）に左ボーダーで区切り
                 const isWeekBoundary = viewWeeks === 2 && i === 7
-
                 return (
                   <th
                     key={i}
                     ref={isTodayCol ? todayRef : undefined}
-                    onClick={bulkMode ? () => toggleColumn(d) : undefined}
-                    className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 transition-colors ${
+                    className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 ${
                       isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
                     } ${
-                      bulkMode ? 'cursor-pointer active:opacity-60' : ''
+                      isTodayCol ? 'bg-navy-50' : 'bg-white'
                     } ${
-                      colAllSelected
-                        ? 'bg-navy-700 text-white'
-                        : isTodayCol
-                        ? 'bg-navy-50'
-                        : 'bg-white'
-                    } ${
-                      colAllSelected ? '' :
                       dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'
                     }`}
                   >
                     <div>{format(d, 'M/d')}</div>
                     <div>{DOW[dow]}</div>
-                    {isTodayCol && !colAllSelected && (
+                    {isTodayCol && (
                       <div className="w-1 h-1 bg-navy-700 rounded-full mx-auto mt-0.5" />
                     )}
                   </th>
@@ -410,116 +331,81 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                   </td>
                 </tr>
 
-                {staff.map(emp => {
-                  const rowKeys = days.map(d => cellKey(emp.name, format(d, 'yyyy-MM-dd')))
-                  const rowAllSelected = bulkMode && rowKeys.every(k => selectedCells.has(k))
+                {staff.map(emp => (
+                  <tr key={emp.id} className="border-b border-gray-50">
+                    {/* 名前セル */}
+                    <td className="px-2 py-1.5 sticky left-0 z-10 bg-white border-r border-gray-100 w-20">
+                      <div className="text-sm font-medium leading-tight text-gray-800">{emp.name}</div>
+                      <div className="text-[10px] leading-tight mt-0.5 text-gray-400">
+                        {emp.location.replace('院', '')}
+                      </div>
+                    </td>
 
-                  return (
-                    <tr key={emp.id} className="border-b border-gray-50">
-                      {/* 名前セル（一括モードで行選択） */}
-                      <td
-                        onClick={bulkMode ? () => toggleRow(emp) : undefined}
-                        className={`px-2 py-1.5 sticky left-0 z-10 border-r w-20 transition-colors ${
-                          bulkMode ? 'cursor-pointer active:opacity-60' : ''
-                        } ${
-                          rowAllSelected
-                            ? 'bg-navy-700 border-navy-600'
-                            : 'bg-white border-gray-100'
-                        }`}
-                      >
-                        <div className={`text-sm font-medium leading-tight ${rowAllSelected ? 'text-white' : 'text-gray-800'}`}>
-                          {emp.name}
-                        </div>
-                        <div className={`text-[10px] leading-tight mt-0.5 ${rowAllSelected ? 'text-navy-200' : 'text-gray-400'}`}>
-                          {emp.location.replace('院', '')}
-                        </div>
-                      </td>
+                    {/* シフトセル */}
+                    {days.map((d, i) => {
+                      const isTodayCol = isSameDay(d, today)
+                      const dateStr = format(d, 'yyyy-MM-dd')
+                      const key = cellKey(emp.name, dateStr)
+                      const draft = draftChanges.get(key)
+                      const { display: savedDisplay, shiftType: savedShift } = getShiftInfo(emp, d, initialShifts)
 
-                      {/* シフトセル */}
-                      {days.map((d, i) => {
-                        const isTodayCol = isSameDay(d, today)
-                        const dateStr = format(d, 'yyyy-MM-dd')
-                        const { display, shiftType } = getShiftInfo(emp, d, initialShifts)
-                        const key = cellKey(emp.name, dateStr)
-                        const isSelected = selectedCells.has(key)
-                        const isWeekBoundary = viewWeeks === 2 && i === 7
+                      // 下書きがあれば下書きを表示、なければ保存済みを表示
+                      const display = draft
+                        ? (SHIFT_DISPLAY[draft.shiftType] || WORKING)
+                        : savedDisplay
+                      const isDraft = !!draft
+                      const isWeekBoundary = viewWeeks === 2 && i === 7
 
-                        return (
-                          <td
-                            key={i}
-                            onClick={() => handleCellClick(emp, d, shiftType)}
-                            className={`relative text-center py-2 text-sm font-bold cursor-pointer transition-all ${
-                              isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
-                            } ${
-                              isSelected
-                                ? 'bg-navy-700 text-white'
-                                : `${display.className} ${isTodayCol ? 'bg-navy-50/60' : ''}`
-                            } ${bulkMode && !isSelected ? 'active:bg-navy-100' : 'active:opacity-50'}`}
-                          >
-                            {isSelected ? (
-                              <Check size={14} className="mx-auto stroke-[3]" />
-                            ) : (
-                              display.label
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                })}
+                      return (
+                        <td
+                          key={i}
+                          onClick={() => handleCellClick(emp, d)}
+                          className={`relative text-center py-2 text-sm font-bold transition-all ${
+                            isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
+                          } ${
+                            draftMode ? 'cursor-pointer active:scale-90' : ''
+                          } ${
+                            isDraft
+                              ? 'ring-2 ring-inset ring-amber-400 bg-amber-50'
+                              : `${display.className} ${isTodayCol ? 'bg-navy-50/60' : ''}`
+                          }`}
+                        >
+                          <span className={isDraft ? 'text-amber-700' : ''}>
+                            {isDraft
+                              ? (SHIFT_DISPLAY[draft!.shiftType]?.label ?? draft!.shiftType[0])
+                              : display.label}
+                          </span>
+                          {/* 下書きインジケーター（右下の小ドット） */}
+                          {isDraft && (
+                            <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
               </>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* 一括アクションバー */}
-      {bulkMode && (
-        <div
-          className="flex-none bg-white border-t border-gray-100 px-4 py-3 flex items-center gap-3"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        >
+      {/* 変更確定フローティングボタン */}
+      {draftMode && draftCount > 0 && (
+        <div className="fixed bottom-20 right-4 z-40 lg:bottom-8 lg:right-8">
           <button
-            onClick={() => setSelectedCells(new Set())}
-            className="text-xs text-gray-400 font-medium px-3 py-2 rounded-xl bg-gray-100 active:opacity-60"
-            disabled={selectedCount === 0}
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="flex items-center gap-2 bg-navy-700 text-white px-5 py-3 rounded-2xl shadow-xl font-semibold text-sm active:opacity-80 disabled:opacity-60 transition-opacity"
           >
-            解除
-          </button>
-          <div className="flex-1 text-center">
-            <span className="text-sm font-bold text-navy-700">
-              {selectedCount > 0 ? `${selectedCount}件選択中` : 'セルを選択'}
-            </span>
-          </div>
-          <button
-            onClick={() => setBulkModalOpen(true)}
-            disabled={selectedCount === 0}
-            className="px-4 py-2 bg-navy-700 text-white text-sm font-semibold rounded-xl disabled:opacity-30 active:opacity-70 shadow-sm"
-          >
-            シフトを設定
+            {confirming ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Check size={16} strokeWidth={3} />
+            )}
+            変更確定 {draftCount}件
           </button>
         </div>
-      )}
-
-      {/* 通常シフトモーダル */}
-      {modal && (
-        <ShiftModal
-          date={modal.date}
-          employeeName={modal.employee.name}
-          currentShift={modal.currentShift}
-          onSave={handleSave}
-          onClose={() => setModal(null)}
-          saving={false}
-        />
-      )}
-
-      {/* 一括シフトモーダル */}
-      {bulkModalOpen && (
-        <BulkShiftModal
-          count={selectedCount}
-          onSave={handleBulkSave}
-          onClose={() => setBulkModalOpen(false)}
-        />
       )}
 
       {/* 変更履歴ドロワー */}
