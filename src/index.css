@@ -35,18 +35,20 @@ body {
 
 /* Tab slide transitions */
 @keyframes slideInFromRight {
-  from { transform: translateX(24px); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+  0%   { transform: translateX(56px) scale(0.96); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: translateX(0)    scale(1);    opacity: 1; }
 }
 @keyframes slideInFromLeft {
-  from { transform: translateX(-24px); opacity: 0; }
-  to   { transform: translateX(0);     opacity: 1; }
+  0%   { transform: translateX(-56px) scale(0.96); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: translateX(0)     scale(1);    opacity: 1; }
 }
 .tab-enter-right {
-  animation: slideInFromRight 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation: slideInFromRight 0.42s cubic-bezier(0.34, 1.12, 0.64, 1) both;
 }
 .tab-enter-left {
-  animation: slideInFromLeft 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  animation: slideInFromLeft 0.42s cubic-bezier(0.34, 1.12, 0.64, 1) both;
 }
 
 /* Scrollbar hide */
