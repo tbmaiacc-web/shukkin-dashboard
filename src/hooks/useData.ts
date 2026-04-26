@@ -54,10 +54,18 @@ export function useData(): DataState {
 
     try {
       const r = await fetch(`${GAS_URL}?action=all`)
-      const data: { employees: Employee[]; shifts: Shift[] } = await r.json()
-      setEmployees(data.employees || [])
+      const data: { employees: any[]; shifts: Shift[] } = await r.json()
+      // GASはスプレッドシートの値を文字列で返すことがあるため数値列を明示的に変換
+      const employees: Employee[] = (data.employees || []).map((e: any) => ({
+        ...e,
+        paidLeaveAllotted:       e.paidLeaveAllotted       != null ? Number(e.paidLeaveAllotted)       : undefined,
+        paidLeaveUsed:           e.paidLeaveUsed           != null ? Number(e.paidLeaveUsed)           : undefined,
+        anniversaryLeaveAllotted: e.anniversaryLeaveAllotted != null ? Number(e.anniversaryLeaveAllotted) : undefined,
+        anniversaryLeaveUsed:    e.anniversaryLeaveUsed    != null ? Number(e.anniversaryLeaveUsed)    : undefined,
+      }))
+      setEmployees(employees)
       setShifts(data.shifts || [])
-      saveCache(data.employees || [], data.shifts || [])
+      saveCache(employees, data.shifts || [])
     } catch (e: any) {
       if (!silent) setError(`データ取得エラー: ${e.message}`)
     } finally {

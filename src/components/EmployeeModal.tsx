@@ -16,19 +16,20 @@ const LOCATIONS = ['草加院', 'イオン八潮南院', '上尾院', '前橋院
 function StepCounter({
   value, onChange, disabled, min = 0, max = 99,
 }: { value: number; onChange: (v: number) => void; disabled?: boolean; min?: number; max?: number }) {
+  const num = Number(value) // GASから文字列で来る場合に備えてNumber変換
   return (
     <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${disabled ? 'bg-gray-50' : 'bg-white'}`}>
       <button
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={disabled || value <= min}
+        onClick={() => onChange(Math.max(min, num - 1))}
+        disabled={disabled || num <= min}
         className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60 disabled:opacity-30"
       >−</button>
       <span className={`flex-1 text-center text-sm font-semibold ${disabled ? 'text-gray-400' : 'text-gray-800'}`}>
-        {value}日
+        {num}日
       </span>
       <button
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={disabled || value >= max}
+        onClick={() => onChange(Math.min(max, num + 1))}
+        disabled={disabled || num >= max}
         className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60 disabled:opacity-30"
       >＋</button>
     </div>
