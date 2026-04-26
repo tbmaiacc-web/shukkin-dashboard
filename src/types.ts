@@ -3,8 +3,10 @@ export interface Employee {
   name: string
   role: string
   location: string
-  paidLeaveAllotted?: number   // 年間付与日数
-  paidLeaveUsed?: number       // 使用済み日数
+  paidLeaveAllotted?: number          // 有給：年間付与日数
+  paidLeaveUsed?: number              // 有給：使用済み日数
+  anniversaryLeaveAllotted?: number   // アニバーサリー：年間付与日数（デフォルト5）
+  anniversaryLeaveUsed?: number       // アニバーサリー：使用済み日数
 }
 
 export interface HistoryEntry {

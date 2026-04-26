@@ -1,10 +1,11 @@
 import { GAS_URL } from '../config'
 import { Employee, HistoryEntry } from '../types'
 
-async function gasGet(params: Record<string, string>): Promise<void> {
+async function gasGet(params: Record<string, string>): Promise<any> {
   const url = new URL(GAS_URL)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
-  await fetch(url.toString())
+  const r = await fetch(url.toString())
+  return r.json().catch(() => ({}))
 }
 
 export async function upsertShift(
@@ -30,6 +31,8 @@ export async function updateEmployee(employee: Employee) {
     location: employee.location,
     paidLeaveAllotted: String(employee.paidLeaveAllotted ?? 10),
     paidLeaveUsed: String(employee.paidLeaveUsed ?? 0),
+    anniversaryLeaveAllotted: String(employee.anniversaryLeaveAllotted ?? 5),
+    anniversaryLeaveUsed: String(employee.anniversaryLeaveUsed ?? 0),
   })
 }
 
@@ -41,6 +44,8 @@ export async function addEmployee(employee: Employee) {
     location: employee.location,
     paidLeaveAllotted: String(employee.paidLeaveAllotted ?? 10),
     paidLeaveUsed: String(employee.paidLeaveUsed ?? 0),
+    anniversaryLeaveAllotted: String(employee.anniversaryLeaveAllotted ?? 5),
+    anniversaryLeaveUsed: String(employee.anniversaryLeaveUsed ?? 0),
   })
 }
 
@@ -54,16 +59,15 @@ export async function addHistory(
 ): Promise<void> {
   try {
     await gasGet({ action: 'addHistory', date, employeeName, oldShift, newShift })
-  } catch {
-    // 履歴記録失敗は silent（メイン操作には影響させない）
-  }
+  } catch {}
 }
 
-export async function getHistory(limit = 60): Promise<HistoryEntry[]> {
+export async function getHistory(limit = 60, employeeName = ''): Promise<HistoryEntry[]> {
   try {
+    const params: Record<string, string> = { action: 'getHistory', limit: String(limit) }
+    if (employeeName) params.employeeName = employeeName
     const url = new URL(GAS_URL)
-    url.searchParams.set('action', 'getHistory')
-    url.searchParams.set('limit', String(limit))
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
     const r = await fetch(url.toString())
     const data = await r.json()
     return data.history || []
@@ -72,10 +76,29 @@ export async function getHistory(limit = 60): Promise<HistoryEntry[]> {
   }
 }
 
-// ─── 有給残日数更新（有休シフト適用時に自動インクリメント） ──
+// ─── 有給残日数更新 ───────────────────────────────────────
 
 export async function incrementUsedLeave(employeeName: string): Promise<void> {
   try {
     await gasGet({ action: 'incrementUsedLeave', employeeName })
   } catch {}
+}
+
+// ─── アニバーサリー休暇残日数更新 ────────────────────────
+
+export async function incrementUsedAnniversaryLeave(employeeName: string): Promise<void> {
+  try {
+    await gasGet({ action: 'incrementUsedAnniversaryLeave', employeeName })
+  } catch {}
+}
+
+// ─── 管理者 PIN 認証 ──────────────────────────────────────
+
+export async function verifyAdminPin(pin: string): Promise<boolean> {
+  try {
+    const data = await gasGet({ action: 'verifyAdminPin', pin })
+    return data.ok === true
+  } catch {
+    return false
+  }
 }

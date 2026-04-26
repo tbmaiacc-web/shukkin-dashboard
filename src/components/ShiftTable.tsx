@@ -3,7 +3,7 @@ import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, is
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw, Layers, X, Check, Clock } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
-import { upsertShift, deleteShift, addHistory, incrementUsedLeave } from '../hooks/useMutation'
+import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
 import ShiftModal from './ShiftModal'
 import BulkShiftModal from './BulkShiftModal'
 import HistoryDrawer from './HistoryDrawer'
@@ -111,9 +111,13 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       // 履歴記録（シフトが実際に変わった時のみ）
       if (oldShift !== shiftType) {
         addHistory(dateStr, empName, oldShift, shiftType)
-        // 有休・アニバーサリー休暇適用時は使用日数をインクリメント
-        if (['有休', 'アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+        // 有休適用時は有給使用日数をインクリメント
+        if (shiftType === '有休') {
           incrementUsedLeave(empName)
+        }
+        // アニバーサリー休暇適用時はアニバーサリー使用日数をインクリメント
+        if (['アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+          incrementUsedAnniversaryLeave(empName)
         }
       }
     } catch {}
@@ -190,12 +194,20 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       )
     )
 
-    // 有休・アニバーサリー休暇の一括適用は従業員ごとに日数カウント
-    if (['有休', 'アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+    // 有休の一括適用は従業員ごとに有給使用日数カウント
+    if (shiftType === '有休') {
       const empNames = [...new Set(cells.map(c => c.empName))]
       empNames.forEach(name => {
         const count = cells.filter(c => c.empName === name).length
         for (let i = 0; i < count; i++) incrementUsedLeave(name)
+      })
+    }
+    // アニバーサリー休暇の一括適用は従業員ごとにアニバーサリー使用日数カウント
+    if (['アニ休', 'AMアニ休', 'PMアニ休'].includes(shiftType)) {
+      const empNames = [...new Set(cells.map(c => c.empName))]
+      empNames.forEach(name => {
+        const count = cells.filter(c => c.empName === name).length
+        for (let i = 0; i < count; i++) incrementUsedAnniversaryLeave(name)
       })
     }
 

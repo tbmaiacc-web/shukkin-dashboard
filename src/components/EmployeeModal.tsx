@@ -4,6 +4,7 @@ import { Employee } from '../types'
 
 interface Props {
   employee: Employee | null
+  isAdmin: boolean
   onSave: (emp: Employee) => void
   onClose: () => void
   saving: boolean
@@ -12,7 +13,29 @@ interface Props {
 const ROLES = ['院長', '副院長', 'セラピスト']
 const LOCATIONS = ['草加院', 'イオン八潮南院', '上尾院', '前橋院', '伊勢崎宮子院', '取手院']
 
-export default function EmployeeModal({ employee, onSave, onClose, saving }: Props) {
+function StepCounter({
+  value, onChange, disabled, min = 0, max = 99,
+}: { value: number; onChange: (v: number) => void; disabled?: boolean; min?: number; max?: number }) {
+  return (
+    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${disabled ? 'bg-gray-50' : 'bg-white'}`}>
+      <button
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={disabled || value <= min}
+        className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60 disabled:opacity-30"
+      >−</button>
+      <span className={`flex-1 text-center text-sm font-semibold ${disabled ? 'text-gray-400' : 'text-gray-800'}`}>
+        {value}日
+      </span>
+      <button
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={disabled || value >= max}
+        className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60 disabled:opacity-30"
+      >＋</button>
+    </div>
+  )
+}
+
+export default function EmployeeModal({ employee, isAdmin, onSave, onClose, saving }: Props) {
   const isNew = !employee
   const [closing, setClosing] = useState(false)
   const [form, setForm] = useState<Omit<Employee, 'id'>>({
@@ -21,6 +44,8 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
     location: employee?.location || '草加院',
     paidLeaveAllotted: employee?.paidLeaveAllotted ?? 10,
     paidLeaveUsed: employee?.paidLeaveUsed ?? 0,
+    anniversaryLeaveAllotted: employee?.anniversaryLeaveAllotted ?? 5,
+    anniversaryLeaveUsed: employee?.anniversaryLeaveUsed ?? 0,
   })
 
   const handleClose = () => {
@@ -34,21 +59,31 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
     onSave({ id: employee?.id || '', ...form })
   }
 
+  const paidRemaining = (form.paidLeaveAllotted ?? 10) - (form.paidLeaveUsed ?? 0)
+  const anniversaryRemaining = (form.anniversaryLeaveAllotted ?? 5) - (form.anniversaryLeaveUsed ?? 0)
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
       <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
         className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] p-6 shadow-2xl overflow-y-auto ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
-        style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))', maxHeight: '85vh' }}
+        style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))', maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
 
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-gray-900">
-            {isNew ? '従業員を追加' : '従業員を編集'}
-          </h3>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">
+              {isNew ? '従業員を追加' : '従業員を編集'}
+            </h3>
+            {isAdmin && (
+              <span className="text-[10px] font-semibold text-navy-700 bg-navy-50 px-2 py-0.5 rounded-full">
+                管理者モード
+              </span>
+            )}
+          </div>
           <button onClick={handleClose} className="p-1 text-gray-400"><X size={20} /></button>
         </div>
 
@@ -59,6 +94,7 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 氏名 */}
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">氏名</label>
               <input
@@ -70,6 +106,7 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
               />
             </div>
 
+            {/* 役職 */}
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">役職</label>
               <div className="flex flex-wrap gap-2">
@@ -82,13 +119,12 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
                         ? 'bg-navy-700 text-white border-navy-700'
                         : 'bg-white text-gray-600 border-gray-200'
                     }`}
-                  >
-                    {r}
-                  </button>
+                  >{r}</button>
                 ))}
               </div>
             </div>
 
+            {/* 勤務地 */}
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">勤務地</label>
               <div className="flex flex-wrap gap-2">
@@ -101,59 +137,75 @@ export default function EmployeeModal({ employee, onSave, onClose, saving }: Pro
                         ? 'bg-navy-700 text-white border-navy-700'
                         : 'bg-white text-gray-600 border-gray-200'
                     }`}
-                  >
-                    {l}
-                  </button>
+                  >{l}</button>
                 ))}
               </div>
             </div>
 
-            {/* 有給管理 */}
+            {/* 有給休暇 */}
             <div className="bg-green-50 rounded-2xl p-4">
-              <label className="text-xs font-semibold text-green-700 mb-3 block">有給休暇</label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-semibold text-green-700">有給休暇</label>
+                <span className={`text-xs font-bold ${paidRemaining <= 2 ? 'text-red-500' : 'text-green-600'}`}>
+                  残 {paidRemaining}日
+                </span>
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-[10px] text-gray-500 mb-1 block">年間付与日数</label>
-                  <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
-                    <button
-                      onClick={() => setForm(f => ({ ...f, paidLeaveAllotted: Math.max(0, (f.paidLeaveAllotted ?? 10) - 1) }))}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60"
-                    >−</button>
-                    <span className="flex-1 text-center text-sm font-semibold text-gray-800">
-                      {form.paidLeaveAllotted ?? 10}日
-                    </span>
-                    <button
-                      onClick={() => setForm(f => ({ ...f, paidLeaveAllotted: (f.paidLeaveAllotted ?? 10) + 1 }))}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60"
-                    >＋</button>
-                  </div>
+                  <p className="text-[10px] text-gray-500 mb-1">
+                    年間付与日数{!isAdmin && <span className="text-gray-400">（管理者のみ変更可）</span>}
+                  </p>
+                  <StepCounter
+                    value={form.paidLeaveAllotted ?? 10}
+                    onChange={v => setForm(f => ({ ...f, paidLeaveAllotted: v }))}
+                    disabled={!isAdmin}
+                  />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] text-gray-500 mb-1 block">使用済み日数</label>
-                  <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
-                    <button
-                      onClick={() => setForm(f => ({ ...f, paidLeaveUsed: Math.max(0, (f.paidLeaveUsed ?? 0) - 1) }))}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60"
-                    >−</button>
-                    <span className="flex-1 text-center text-sm font-semibold text-gray-800">
-                      {form.paidLeaveUsed ?? 0}日
-                    </span>
-                    <button
-                      onClick={() => setForm(f => ({ ...f, paidLeaveUsed: Math.min(f.paidLeaveAllotted ?? 10, (f.paidLeaveUsed ?? 0) + 1) }))}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-sm font-bold active:opacity-60"
-                    >＋</button>
-                  </div>
+                  <p className="text-[10px] text-gray-500 mb-1">
+                    使用済み日数{!isAdmin && <span className="text-gray-400">（管理者のみ変更可）</span>}
+                  </p>
+                  <StepCounter
+                    value={form.paidLeaveUsed ?? 0}
+                    onChange={v => setForm(f => ({ ...f, paidLeaveUsed: v }))}
+                    disabled={!isAdmin}
+                    max={form.paidLeaveAllotted ?? 10}
+                  />
                 </div>
               </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs text-gray-500">残日数</span>
-                <span className={`text-sm font-bold ${
-                  ((form.paidLeaveAllotted ?? 10) - (form.paidLeaveUsed ?? 0)) <= 2
-                    ? 'text-red-500'
-                    : 'text-green-600'
-                }`}>
-                  {(form.paidLeaveAllotted ?? 10) - (form.paidLeaveUsed ?? 0)}日
+            </div>
+
+            {/* アニバーサリー休暇 */}
+            <div className="bg-orange-50 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-semibold text-orange-600">アニバーサリー休暇</label>
+                <span className={`text-xs font-bold ${anniversaryRemaining <= 1 ? 'text-red-500' : 'text-orange-500'}`}>
+                  残 {anniversaryRemaining}日
                 </span>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-500 mb-1">
+                    年間付与日数{!isAdmin && <span className="text-gray-400">（管理者のみ変更可）</span>}
+                  </p>
+                  <StepCounter
+                    value={form.anniversaryLeaveAllotted ?? 5}
+                    onChange={v => setForm(f => ({ ...f, anniversaryLeaveAllotted: v }))}
+                    disabled={!isAdmin}
+                    max={30}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-500 mb-1">
+                    使用済み日数{!isAdmin && <span className="text-gray-400">（管理者のみ変更可）</span>}
+                  </p>
+                  <StepCounter
+                    value={form.anniversaryLeaveUsed ?? 0}
+                    onChange={v => setForm(f => ({ ...f, anniversaryLeaveUsed: v }))}
+                    disabled={!isAdmin}
+                    max={form.anniversaryLeaveAllotted ?? 5}
+                  />
+                </div>
               </div>
             </div>
 
