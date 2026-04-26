@@ -43,9 +43,9 @@ export default function EmployeeList({ employees, onReload }: Props) {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 lg:pb-8">
       {/* ヘッダー */}
-      <div className="bg-white px-4 pt-10 pb-4 flex items-center gap-3">
+      <div className="bg-white px-4 pt-10 pb-4 lg:pt-5 flex items-center gap-3">
         <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
         <div className="flex-1">
           <h1 className="text-lg font-bold text-gray-900 leading-tight">従業員管理</h1>
@@ -81,7 +81,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
         </div>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="px-4 py-3 lg:max-w-5xl lg:mx-auto">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-gray-900">
             従業員一覧
@@ -109,7 +109,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
             {filtered.map(emp => {
               const paidRemaining = (emp.paidLeaveAllotted ?? 10) - (emp.paidLeaveUsed ?? 0)
               const annivRemaining = (emp.anniversaryLeaveAllotted ?? 5) - (emp.anniversaryLeaveUsed ?? 0)

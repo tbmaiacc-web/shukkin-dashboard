@@ -252,10 +252,10 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const selectedCount = selectedCells.size
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 64px)' }}>
+    <div className="flex flex-col h-[calc(100dvh-64px)] lg:h-dvh">
 
       {/* 固定ヘッダー */}
-      <div className="bg-white px-4 pt-10 pb-2 flex-none flex items-center gap-3">
+      <div className="bg-white px-4 pt-10 pb-2 lg:pt-4 flex-none flex items-center gap-3">
         <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
         <div className="flex-1">
           <h1 className="text-lg font-bold text-gray-900 leading-tight">勤務早見表</h1>

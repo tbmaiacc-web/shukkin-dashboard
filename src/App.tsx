@@ -95,7 +95,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh bg-gray-50">
+    <div className="min-h-dvh bg-gray-50 lg:pl-56">
       <div key={`${tab}-${animKey.current}`} className={animClass}>
         {tab === 'dashboard' && (
           <Dashboard employees={employees} shifts={shifts} onTabChange={handleTabChange} />

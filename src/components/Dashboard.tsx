@@ -44,9 +44,9 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
   const absentCount = employees.length - workingCount
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 lg:pb-8">
       {/* ヘッダー */}
-      <div className="bg-white px-4 pt-10 pb-4">
+      <div className="bg-white px-4 pt-10 pb-4 lg:pt-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
@@ -69,7 +69,7 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
 
       {/* 月次サマリー */}
       <div className="px-4 pb-3 bg-white border-b border-gray-100">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 lg:max-w-md">
           <div className="bg-navy-50 rounded-2xl px-3 py-2.5 text-center">
             <p className="text-xl font-bold text-navy-700">{workingCount}</p>
             <p className="text-[11px] text-gray-500 mt-0.5">出勤中</p>
@@ -119,7 +119,7 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
       </div>
 
       {/* スタッフリスト */}
-      <div className="px-4 py-3 space-y-4">
+      <div className="px-4 py-3 space-y-4 lg:max-w-5xl lg:mx-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
@@ -142,7 +142,7 @@ export default function Dashboard({ employees, shifts, onTabChange: _onTabChange
                     出勤中 {wCount}/{staff.length}名
                   </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
                   {staff.map(emp => {
                     const status = getStatus(emp, shifts, dateStr)
                     const shift = SHIFT_DISPLAY[status.label]
