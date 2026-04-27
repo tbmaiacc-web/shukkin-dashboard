@@ -56,7 +56,7 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
         }}
       >
         <img
-          src="/logo.png"
+          src={`${import.meta.env.BASE_URL}logo.png`}
           alt="Total Body Make"
           style={{ width: 220, objectFit: 'contain' }}
         />
