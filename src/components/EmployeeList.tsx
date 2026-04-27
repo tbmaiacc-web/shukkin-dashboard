@@ -43,7 +43,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
   }
 
   return (
-    <div className="pb-20 lg:pb-8">
+    <div className="lg:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* ヘッダー */}
       <div className="bg-white px-4 pt-10 pb-4 lg:pt-5 flex items-center gap-3">
         <img src="/logo.png" alt="Total Body Make" className="h-8 shrink-0" />
