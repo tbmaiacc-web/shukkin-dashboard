@@ -17,15 +17,15 @@ export default function BottomNav({ active, onChange, badge }: Props) {
   return (
     <>
       {/* ── モバイル: 下部タブバー ── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-stretch h-16 z-50"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-stretch z-50"
+           style={{ paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(4rem + env(safe-area-inset-bottom))' }}>
         {TABS.map(({ name, label, Icon }) => {
           const isActive = active === name
           return (
             <button
               key={name}
               onClick={() => onChange(name)}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
+              className="flex-1 flex flex-col items-center justify-center gap-1 relative"
             >
               {isActive && (
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-navy-700 rounded-full" />
@@ -35,8 +35,8 @@ export default function BottomNav({ active, onChange, badge }: Props) {
                   {badge > 9 ? '9+' : badge}
                 </span>
               )}
-              <Icon size={22} className={isActive ? 'text-navy-700' : 'text-gray-400'} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className={`text-[11px] font-medium ${isActive ? 'text-navy-700' : 'text-gray-400'}`}>{label}</span>
+              <Icon size={24} className={isActive ? 'text-navy-700' : 'text-gray-400'} strokeWidth={isActive ? 2.2 : 1.8} />
+              <span className={`text-[12px] font-medium ${isActive ? 'text-navy-700' : 'text-gray-400'}`}>{label}</span>
             </button>
           )
         })}
