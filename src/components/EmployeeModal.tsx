@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { Employee } from '../types'
 
@@ -63,7 +64,7 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
   const paidRemaining = (form.paidLeaveAllotted ?? 10) - (form.paidLeaveUsed ?? 0)
   const anniversaryRemaining = (form.anniversaryLeaveAllotted ?? 5) - (form.anniversaryLeaveUsed ?? 0)
 
-  return (
+  const content = (
     <div className="fixed inset-x-0 top-0 z-[100] flex items-end justify-center overflow-hidden" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }} onClick={handleClose}>
       {/* バックドロップ：画面全体をカバー */}
       <div className={`fixed inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
@@ -235,4 +236,5 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
       </div>
     </div>
   )
+  return createPortal(content, document.body)
 }

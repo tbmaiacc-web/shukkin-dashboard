@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Loader, Calendar } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -53,7 +54,7 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
   const paidRemaining = (employee.paidLeaveAllotted ?? 10) - (employee.paidLeaveUsed ?? 0)
   const anniversaryRemaining = (employee.anniversaryLeaveAllotted ?? 5) - (employee.anniversaryLeaveUsed ?? 0)
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-[150] flex items-end justify-center" onClick={handleClose}>
       <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
@@ -163,4 +164,5 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
       </div>
     </div>
   )
+  return createPortal(content, document.body)
 }

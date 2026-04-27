@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ShieldCheck, Lock } from 'lucide-react'
 
 interface Props {
@@ -57,7 +58,7 @@ export default function AdminPinModal({ onVerify, verifying, error, onClose, onC
     }
   }
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-[200] flex items-end justify-center" onClick={handleClose}>
       <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
@@ -122,4 +123,5 @@ export default function AdminPinModal({ onVerify, verifying, error, onClose, onC
       </div>
     </div>
   )
+  return createPortal(content, document.body)
 }
