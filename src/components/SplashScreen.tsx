@@ -92,8 +92,9 @@ export default function SplashScreen({ dataReady, onDone }: Props) {
 
       {/* 下部の赤ライン */}
       <div
-        className="absolute bottom-0 left-0 right-0"
+        className="absolute left-0 right-0"
         style={{
+          bottom: 'env(safe-area-inset-bottom, 0px)',
           height: 3,
           background: '#DC2626',
           transform: isIn ? 'scaleX(0)' : 'scaleX(1)',
