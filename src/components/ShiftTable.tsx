@@ -198,7 +198,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
 
   return (
     <>
-    <div className="flex flex-col h-[calc(100dvh-64px)] lg:h-dvh">
+    <div className="flex flex-col lg:h-dvh" style={{ height: 'calc(100dvh - 4rem - env(safe-area-inset-bottom, 0px))' }}>
 
       {/* 固定ヘッダー */}
       <div className="bg-white px-4 pt-10 pb-2 lg:pt-4 flex-none flex items-center gap-3">
