@@ -64,11 +64,12 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
   const anniversaryRemaining = (form.anniversaryLeaveAllotted ?? 5) - (form.anniversaryLeaveUsed ?? 0)
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={handleClose}>
-      <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
+    <div className="fixed inset-x-0 top-0 z-[100] flex items-end justify-center" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }} onClick={handleClose}>
+      {/* バックドロップ：画面全体をカバー */}
+      <div className={`fixed inset-0 bg-black/40 backdrop-blur-sm ${closing ? 'backdrop-out' : 'backdrop-in'}`} />
       <div
         className={`relative bg-white/85 backdrop-blur-2xl border border-white/40 rounded-t-3xl w-full max-w-[430px] shadow-2xl flex flex-col ${closing ? 'modal-slide-down' : 'modal-slide-up'}`}
-        style={{ maxHeight: '90vh' }}
+        style={{ maxHeight: 'min(90dvh, 90vh)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* ── ヘッダー（固定） ── */}
@@ -220,7 +221,7 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
         {!saving && (
           <div
             className="flex-none px-6 pt-3 border-t border-gray-100"
-            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+            style={{ paddingBottom: '1.5rem' }}
           >
             <button
               onClick={handleSave}
