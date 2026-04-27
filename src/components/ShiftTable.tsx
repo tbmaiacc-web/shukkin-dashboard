@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, CalendarDays, Pencil } from 'lucide-react'
@@ -143,7 +144,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     setDraftMode(false)
     setDraftChanges(new Map())
 
-    // 3. GAS に並列送信
+    // 3. GAS にシフト並列送信（全て完了を待つ）
     await Promise.allSettled(
       changes.map(c =>
         c.shiftType === '出勤'
@@ -152,17 +153,23 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       )
     )
 
-    // 4. 履歴・有給残処理（変わった分のみ）
-    changes
-      .filter(c => c.shiftType !== c.originalShift)
-      .forEach(c => {
-        addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType)
-        if (c.shiftType === '有休') incrementUsedLeave(c.employeeName)
-        if (c.shiftType === 'アニ休') incrementUsedAnniversaryLeave(c.employeeName, 1)
-        if (['AMアニ休', 'PMアニ休'].includes(c.shiftType)) incrementUsedAnniversaryLeave(c.employeeName, 0.5)
-      })
+    // 4. 履歴・有給残処理（全て完了を待つ）
+    await Promise.allSettled(
+      changes
+        .filter(c => c.shiftType !== c.originalShift)
+        .flatMap(c => [
+          addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType),
+          c.shiftType === '有休'
+            ? incrementUsedLeave(c.employeeName)
+            : c.shiftType === 'アニ休'
+            ? incrementUsedAnniversaryLeave(c.employeeName, 1)
+            : ['AMアニ休', 'PMアニ休'].includes(c.shiftType)
+            ? incrementUsedAnniversaryLeave(c.employeeName, 0.5)
+            : Promise.resolve(),
+        ])
+    )
 
-    // 5. サイレントリロード
+    // 5. サイレントリロード（全処理完了後）
     await onReload()
     setConfirming(false)
     onToast(`${changes.length}件のシフトを更新しました`)
@@ -190,6 +197,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const draftCount = draftChanges.size
 
   return (
+    <>
     <div className="flex flex-col h-[calc(100dvh-64px)] lg:h-dvh">
 
       {/* 固定ヘッダー */}
@@ -431,5 +439,26 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         <HistoryDrawer onClose={() => setHistoryOpen(false)} />
       )}
     </div>
+
+    {/* ── 確定処理中ブロッキングモーダル ── */}
+    {confirming && createPortal(
+      <div className="fixed inset-0 z-[500] flex flex-col items-center justify-center"
+           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+        <div className="bg-white rounded-3xl px-10 py-9 flex flex-col items-center gap-4 shadow-2xl mx-6"
+             style={{ maxWidth: 320 }}>
+          {/* スピナー */}
+          <div className="relative w-14 h-14">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+            <div className="absolute inset-0 rounded-full border-4 border-navy-700 border-t-transparent animate-spin" />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold text-gray-900">保存中...</p>
+            <p className="text-xs text-gray-400 mt-1">完了までそのままお待ちください</p>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }
