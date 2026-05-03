@@ -18,7 +18,7 @@ const SHIFT_GROUPS = [
   },
   {
     label: '各種休暇',
-    items: ['有休', 'アニ休', 'AMアニ休', 'PMアニ休', '育休', '産休', '特別休暇'],
+    items: ['有休', 'AM有休', 'PM有休', 'アニ休', 'AMアニ休', 'PMアニ休', '育休', '産休', '特別休暇'],
   },
   {
     label: 'その他',
@@ -32,6 +32,8 @@ const SHIFT_COLORS: Record<string, string> = {
   'AM公休':  'bg-red-50   text-red-400   border-red-100',
   'PM公休':  'bg-red-50   text-red-400   border-red-100',
   '有休':    'bg-green-50 text-green-600 border-green-100',
+  'AM有休':  'bg-green-50 text-green-500 border-green-100',
+  'PM有休':  'bg-green-50 text-green-500 border-green-100',
   'アニ休':  'bg-orange-50 text-orange-500 border-orange-100',
   'AMアニ休':'bg-orange-50 text-orange-400 border-orange-100',
   'PMアニ休':'bg-orange-50 text-orange-400 border-orange-100',

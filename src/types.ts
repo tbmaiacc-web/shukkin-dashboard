@@ -35,6 +35,8 @@ export const SHIFT_DISPLAY: Record<string, { label: string; className: string }>
   'AM公休':  { label: 'AM公', className: 'text-red-400 bg-red-50' },
   'PM公休':  { label: 'PM公', className: 'text-red-400 bg-red-50' },
   '有休':    { label: '有',   className: 'text-green-600 bg-green-50' },
+  'AM有休':  { label: 'AM有', className: 'text-green-500 bg-green-50' },
+  'PM有休':  { label: 'PM有', className: 'text-green-500 bg-green-50' },
   '育休':    { label: '育',   className: 'text-teal-600 bg-teal-50' },
   '産休':    { label: '産',   className: 'text-pink-500 bg-pink-50' },
   'アニ休':  { label: 'アニバ', className: 'text-orange-500 bg-orange-50' },
@@ -49,6 +51,6 @@ export const SHIFT_DISPLAY: Record<string, { label: string; className: string }>
 export const WORKING = { label: '出', className: 'text-blue-500' }
 
 export const NON_WORKING_TYPES = new Set([
-  '公休', 'AM公休', 'PM公休', '有休', '育休', '産休',
+  '公休', 'AM公休', 'PM公休', '有休', 'AM有休', 'PM有休', '育休', '産休',
   'アニ休', 'AMアニ休', 'PMアニ休', '特別休暇',
 ])

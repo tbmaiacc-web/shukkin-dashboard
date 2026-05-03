@@ -583,11 +583,14 @@ function incrementUsedLeave(data) {
   const nameIdx = headers.indexOf('name');
   const usedIdx = headers.indexOf('paidLeaveUsed');
   if (nameIdx < 0 || usedIdx < 0) return { ok: false, error: 'paidLeaveUsed column not found' };
+  var amount = data.amount != null ? Number(data.amount) : 1;
+  if (isNaN(amount) || amount <= 0) amount = 1;
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][nameIdx]).trim() === String(data.employeeName || '').trim()) {
       var current = Number(rows[i][usedIdx]) || 0;
-      sheet.getRange(i + 1, usedIdx + 1).setValue(current + 1);
-      return { ok: true, newValue: current + 1 };
+      var newValue = Math.round((current + amount) * 10) / 10;
+      sheet.getRange(i + 1, usedIdx + 1).setValue(newValue);
+      return { ok: true, newValue: newValue };
     }
   }
   return { ok: false, error: 'Employee not found' };

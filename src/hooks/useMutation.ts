@@ -78,9 +78,10 @@ export async function getHistory(limit = 60, employeeName = ''): Promise<History
 
 // ─── 有給残日数更新 ───────────────────────────────────────
 
-export async function incrementUsedLeave(employeeName: string): Promise<void> {
+// amount: 1=全日, 0.5=半日（AM有休/PM有休）
+export async function incrementUsedLeave(employeeName: string, amount: number = 1): Promise<void> {
   try {
-    await gasGet({ action: 'incrementUsedLeave', employeeName })
+    await gasGet({ action: 'incrementUsedLeave', employeeName, amount: String(amount) })
   } catch {}
 }
 

@@ -160,7 +160,9 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         .flatMap(c => [
           addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType),
           c.shiftType === '有休'
-            ? incrementUsedLeave(c.employeeName)
+            ? incrementUsedLeave(c.employeeName, 1)
+            : c.shiftType === 'AM有休' || c.shiftType === 'PM有休'
+            ? incrementUsedLeave(c.employeeName, 0.5)
             : c.shiftType === 'アニ休'
             ? incrementUsedAnniversaryLeave(c.employeeName, 1)
             : ['AMアニ休', 'PMアニ休'].includes(c.shiftType)
