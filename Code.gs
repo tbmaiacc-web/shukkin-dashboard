@@ -24,6 +24,22 @@ function doGet(e) {
       result = getEmployeesJson();
     } else if (action === 'shifts') {
       result = getShiftsJson();
+    } else if (action === 'addHistory') {
+      result = addHistoryRecord(p);
+    } else if (action === 'getHistory') {
+      result = getHistoryRecords(Number(p.limit) || 60, p.employeeName || '');
+    } else if (action === 'incrementUsedLeave') {
+      result = incrementUsedLeave(p);
+    } else if (action === 'incrementUsedAnniversaryLeave') {
+      result = incrementUsedAnniversaryLeave(p);
+    } else if (action === 'verifyAdminPin') {
+      result = verifyAdminPin(p);
+    } else if (action === 'initLeaveColumns') {
+      initEmployeeLeaveColumns();
+      result = { ok: true, message: 'initEmployeeLeaveColumns done' };
+    } else if (action === 'initAnniversaryLeaveColumns') {
+      initAnniversaryLeaveColumns();
+      result = { ok: true, message: 'initAnniversaryLeaveColumns done' };
     } else {
       result = { employees: getEmployeesJson(), shifts: getShiftsJson() };
     }
@@ -67,6 +83,14 @@ function doPost(e) {
       result = updateEmployee(data);
     } else if (action === 'addEmployee') {
       result = addEmployee(data);
+    } else if (action === 'addHistory') {
+      result = addHistoryRecord(data);
+    } else if (action === 'incrementUsedLeave') {
+      result = incrementUsedLeave(data);
+    } else if (action === 'incrementUsedAnniversaryLeave') {
+      result = incrementUsedAnniversaryLeave(data);
+    } else if (action === 'verifyAdminPin') {
+      result = verifyAdminPin(data);
     } else {
       result = { error: 'Unknown action' };
     }
@@ -494,6 +518,173 @@ function formatSheet(sheet, numDateCols, employees) {
 
   // 氏名列は左揃え
   sheet.getRange(4, 2, employees.length, 1).setHorizontalAlignment('left');
+}
+
+// ========================================
+// シフト変更履歴
+// ========================================
+
+function addHistoryRecord(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('history');
+  if (!sheet) {
+    sheet = ss.insertSheet('history');
+    sheet.appendRow(['id', 'date', 'employeeName', 'oldShift', 'newShift', 'changedAt']);
+  }
+  const id = String(Date.now());
+  const changedAt = new Date().toISOString();
+  sheet.appendRow([id, data.date || '', data.employeeName || '', data.oldShift || '', data.newShift || '', changedAt]);
+  return { ok: true };
+}
+
+function getHistoryRecords(limit, employeeName) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('history');
+  if (!sheet) return { history: [] };
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return { history: [] };
+  const headers = rows[0];
+  const idIdx  = headers.indexOf('id');
+  const dtIdx  = headers.indexOf('date');
+  const empIdx = headers.indexOf('employeeName');
+  const oldIdx = headers.indexOf('oldShift');
+  const newIdx = headers.indexOf('newShift');
+  const catIdx = headers.indexOf('changedAt');
+  var dataRows = rows.slice(1);
+  // employeeName フィルタ
+  if (employeeName) {
+    dataRows = dataRows.filter(function(r) {
+      return String(r[empIdx] || '').trim() === String(employeeName).trim();
+    });
+  }
+  const history = dataRows.reverse().slice(0, limit).map(function(r) {
+    return {
+      id:           String(r[idIdx]  || ''),
+      date:         String(r[dtIdx]  || ''),
+      employeeName: String(r[empIdx] || ''),
+      oldShift:     String(r[oldIdx] || ''),
+      newShift:     String(r[newIdx] || ''),
+      changedAt:    r[catIdx] instanceof Date ? r[catIdx].toISOString() : String(r[catIdx] || '')
+    };
+  });
+  return { history: history };
+}
+
+// ========================================
+// 有給残日数管理
+// ========================================
+
+function incrementUsedLeave(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  if (!sheet) return { ok: false, error: 'employees sheet not found' };
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const nameIdx = headers.indexOf('name');
+  const usedIdx = headers.indexOf('paidLeaveUsed');
+  if (nameIdx < 0 || usedIdx < 0) return { ok: false, error: 'paidLeaveUsed column not found' };
+  var amount = data.amount != null ? Number(data.amount) : 1;
+  if (isNaN(amount) || amount <= 0) amount = 1;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][nameIdx]).trim() === String(data.employeeName || '').trim()) {
+      var current = Number(rows[i][usedIdx]) || 0;
+      var newValue = Math.round((current + amount) * 10) / 10;
+      sheet.getRange(i + 1, usedIdx + 1).setValue(newValue);
+      return { ok: true, newValue: newValue };
+    }
+  }
+  return { ok: false, error: 'Employee not found' };
+}
+
+function initEmployeeLeaveColumns() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  if (!sheet) { Logger.log('employees sheet not found'); return; }
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  if (headers.indexOf('hireDate') < 0) {
+    var colH = sheet.getLastColumn() + 1;
+    sheet.getRange(1, colH).setValue('hireDate');
+    Logger.log('hireDate 追加完了');
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  if (headers.indexOf('paidLeaveAllotted') < 0) {
+    var col = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col).setValue('paidLeaveAllotted');
+    var numRows = sheet.getLastRow() - 1;
+    if (numRows > 0) sheet.getRange(2, col, numRows, 1).setValue(10);
+    Logger.log('paidLeaveAllotted 追加完了');
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  if (headers.indexOf('paidLeaveUsed') < 0) {
+    var col2 = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col2).setValue('paidLeaveUsed');
+    var numRows2 = sheet.getLastRow() - 1;
+    if (numRows2 > 0) sheet.getRange(2, col2, numRows2, 1).setValue(0);
+    Logger.log('paidLeaveUsed 追加完了');
+  }
+  Logger.log('initEmployeeLeaveColumns 完了');
+}
+
+// ========================================
+// アニバーサリー休暇残日数管理
+// ========================================
+
+function incrementUsedAnniversaryLeave(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  if (!sheet) return { ok: false, error: 'employees sheet not found' };
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const nameIdx = headers.indexOf('name');
+  const usedIdx = headers.indexOf('anniversaryLeaveUsed');
+  if (nameIdx < 0 || usedIdx < 0) return { ok: false, error: 'anniversaryLeaveUsed column not found' };
+  // amount: 1=全日, 0.5=AM/PM半日
+  var amount = parseFloat(data.amount) || 1;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][nameIdx]).trim() === String(data.employeeName || '').trim()) {
+      var current = Number(rows[i][usedIdx]) || 0;
+      var newVal = Math.round((current + amount) * 10) / 10; // 浮動小数点誤差回避
+      sheet.getRange(i + 1, usedIdx + 1).setValue(newVal);
+      return { ok: true, newValue: newVal };
+    }
+  }
+  return { ok: false, error: 'Employee not found' };
+}
+
+function initAnniversaryLeaveColumns() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  if (!sheet) { Logger.log('employees sheet not found'); return; }
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('anniversaryLeaveAllotted') < 0) {
+    var col = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col).setValue('anniversaryLeaveAllotted');
+    var numRows = sheet.getLastRow() - 1;
+    if (numRows > 0) sheet.getRange(2, col, numRows, 1).setValue(5);
+    Logger.log('anniversaryLeaveAllotted 追加完了');
+  }
+  headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf('anniversaryLeaveUsed') < 0) {
+    var col2 = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col2).setValue('anniversaryLeaveUsed');
+    var numRows2 = sheet.getLastRow() - 1;
+    if (numRows2 > 0) sheet.getRange(2, col2, numRows2, 1).setValue(0);
+    Logger.log('anniversaryLeaveUsed 追加完了');
+  }
+  Logger.log('initAnniversaryLeaveColumns 完了');
+}
+
+// ========================================
+// 管理者 PIN 認証
+// ========================================
+
+function verifyAdminPin(data) {
+  var pin = String(data.pin || '').trim();
+  if (!pin) return { ok: false };
+  var stored = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
+  if (!stored) return { ok: false, error: 'ADMIN_PIN not set' };
+  return { ok: pin === stored };
 }
 
 // ========================================

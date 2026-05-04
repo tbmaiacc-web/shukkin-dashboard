@@ -601,14 +601,21 @@ function initEmployeeLeaveColumns() {
   const sheet = ss.getSheetByName('employees');
   if (!sheet) { Logger.log('employees sheet not found'); return; }
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  if (headers.indexOf('hireDate') < 0) {
+    var colH = sheet.getLastColumn() + 1;
+    sheet.getRange(1, colH).setValue('hireDate');
+    Logger.log('hireDate 追加完了');
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
   if (headers.indexOf('paidLeaveAllotted') < 0) {
     var col = sheet.getLastColumn() + 1;
     sheet.getRange(1, col).setValue('paidLeaveAllotted');
     var numRows = sheet.getLastRow() - 1;
     if (numRows > 0) sheet.getRange(2, col, numRows, 1).setValue(10);
     Logger.log('paidLeaveAllotted 追加完了');
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   }
-  headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   if (headers.indexOf('paidLeaveUsed') < 0) {
     var col2 = sheet.getLastColumn() + 1;
     sheet.getRange(1, col2).setValue('paidLeaveUsed');
