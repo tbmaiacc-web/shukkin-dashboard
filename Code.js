@@ -37,6 +37,12 @@ function doGet(e) {
     } else if (action === 'initLeaveColumns') {
       initEmployeeLeaveColumns();
       result = { ok: true, message: 'initEmployeeLeaveColumns done' };
+    } else if (action === 'initAutoGrant') {
+      initAutoGrantColumns();
+      result = { ok: true, message: 'autoGrant columns initialized' };
+    } else if (action === 'runAutoGrant') {
+      var grantLog = autoGrantLeave();
+      result = { ok: true, log: grantLog };
     } else if (action === 'initAnniversaryLeaveColumns') {
       initAnniversaryLeaveColumns();
       result = { ok: true, message: 'initAnniversaryLeaveColumns done' };
@@ -705,4 +711,173 @@ function writeLegend(sheet, startRow) {
         '#9E9E9E', SpreadsheetApp.BorderStyle.SOLID);
     col++;
   }
+}
+
+// ========================================
+// 有給・アニバーサリー休暇 自動付与
+// ========================================
+
+var PAID_LEAVE_TABLE_GAS = [
+  { months: 6,  days: 10 },
+  { months: 18, days: 11 },
+  { months: 30, days: 12 },
+  { months: 42, days: 14 },
+  { months: 54, days: 16 },
+  { months: 66, days: 18 },
+  { months: 78, days: 20 }, // 6.5年以降は毎年20日
+];
+
+function addMonthsGas(date, months) {
+  var d = new Date(date.getTime());
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+function addYearsGas(date, years) {
+  var d = new Date(date.getTime());
+  d.setFullYear(d.getFullYear() + years);
+  return d;
+}
+function toMidnight(date) {
+  var d = new Date(date.getTime());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// 本日時点で「最後に到来した付与日」とその日数を返す
+function getLastPaidLeaveGrant(hireDate, today) {
+  var lastGrant = null;
+  for (var i = 0; i < PAID_LEAVE_TABLE_GAS.length; i++) {
+    var grantDate = toMidnight(addMonthsGas(hireDate, PAID_LEAVE_TABLE_GAS[i].months));
+    if (grantDate <= today) {
+      lastGrant = { date: grantDate, days: PAID_LEAVE_TABLE_GAS[i].days };
+    }
+  }
+  // 6.5年以降：毎年付与
+  var base = toMidnight(addMonthsGas(hireDate, 78));
+  if (base <= today) {
+    var grantDate = base;
+    while (true) {
+      var next = toMidnight(addYearsGas(grantDate, 1));
+      if (next <= today) { grantDate = next; } else { break; }
+    }
+    lastGrant = { date: grantDate, days: 20 };
+  }
+  return lastGrant;
+}
+
+// スプレッドシートに付与管理列を追加（初回のみ）
+function initAutoGrantColumns() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('employees');
+  if (!sheet) return;
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var cols = ['paidLeaveGrantedAt', 'anniversaryLeaveGrantedAt'];
+  cols.forEach(function(col) {
+    if (headers.indexOf(col) < 0) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(col);
+      Logger.log(col + ' 列追加完了');
+      headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    }
+  });
+  Logger.log('initAutoGrantColumns 完了');
+}
+
+// 自動付与メイン処理
+function autoGrantLeave() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('employees');
+  if (!sheet) return [];
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+
+  var idx = function(name) { return headers.indexOf(name); };
+  var nameIdx        = idx('name');
+  var hireDateIdx    = idx('hireDate');
+  var paidAlIdx      = idx('paidLeaveAllotted');
+  var paidUsedIdx    = idx('paidLeaveUsed');
+  var paidGrantedIdx = idx('paidLeaveGrantedAt');
+  var annivAlIdx     = idx('anniversaryLeaveAllotted');
+  var annivUsedIdx   = idx('anniversaryLeaveUsed');
+  var annivGrantedIdx= idx('anniversaryLeaveGrantedAt');
+
+  var today = toMidnight(new Date());
+  var log = [];
+
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row[nameIdx]) continue;
+    var hireDateVal = row[hireDateIdx];
+    if (!hireDateVal) continue;
+    var hireDate = toMidnight(hireDateVal instanceof Date ? hireDateVal : new Date(hireDateVal));
+    if (isNaN(hireDate.getTime())) continue;
+
+    // ── 有給休暇 ──
+    if (paidAlIdx >= 0 && paidGrantedIdx >= 0) {
+      var lastGrant = getLastPaidLeaveGrant(hireDate, today);
+      if (lastGrant) {
+        var lastGrantedRaw = row[paidGrantedIdx];
+        var lastGrantedDate = lastGrantedRaw
+          ? toMidnight(lastGrantedRaw instanceof Date ? lastGrantedRaw : new Date(lastGrantedRaw))
+          : null;
+        var shouldGrant = !lastGrantedDate || lastGrantedDate < lastGrant.date;
+        if (shouldGrant) {
+          // 繰越 = 未消化残日数（最大20日まで）
+          var currentAl = Number(row[paidAlIdx]) || 0;
+          var currentUsed = Number(row[paidUsedIdx]) || 0;
+          var carryOver = Math.min(20, Math.max(0, currentAl - currentUsed));
+          var newAl = carryOver + lastGrant.days;
+          sheet.getRange(i + 1, paidAlIdx + 1).setValue(newAl);
+          if (paidUsedIdx >= 0) sheet.getRange(i + 1, paidUsedIdx + 1).setValue(0);
+          sheet.getRange(i + 1, paidGrantedIdx + 1).setValue(
+            Utilities.formatDate(lastGrant.date, 'Asia/Tokyo', 'yyyy-MM-dd'));
+          var msg = row[nameIdx] + ': 有給付与 繰越' + carryOver + '+新規' + lastGrant.days + '=' + newAl + '日';
+          log.push(msg);
+          Logger.log(msg);
+        }
+      }
+    }
+
+    // ── アニバーサリー休暇 ──
+    if (annivAlIdx >= 0 && annivGrantedIdx >= 0) {
+      // 今年の記念日（入社日の今年版）
+      var thisYearAnniv = toMidnight(new Date(hireDate.getTime()));
+      thisYearAnniv.setFullYear(today.getFullYear());
+      // 入社1年後以降かつ今日以前
+      var firstAnniv = toMidnight(addYearsGas(hireDate, 1));
+      if (thisYearAnniv >= firstAnniv && thisYearAnniv <= today) {
+        var annivGrantedRaw = row[annivGrantedIdx];
+        var annivGrantedDate = annivGrantedRaw
+          ? toMidnight(annivGrantedRaw instanceof Date ? annivGrantedRaw : new Date(annivGrantedRaw))
+          : null;
+        var annivShouldGrant = !annivGrantedDate ||
+          annivGrantedDate.getFullYear() < today.getFullYear();
+        if (annivShouldGrant) {
+          var annivDays = Number(row[annivAlIdx]) || 5;
+          sheet.getRange(i + 1, annivAlIdx + 1).setValue(annivDays);
+          if (annivUsedIdx >= 0) sheet.getRange(i + 1, annivUsedIdx + 1).setValue(0);
+          sheet.getRange(i + 1, annivGrantedIdx + 1).setValue(
+            Utilities.formatDate(thisYearAnniv, 'Asia/Tokyo', 'yyyy-MM-dd'));
+          var amsg = row[nameIdx] + ': アニバーサリー付与 ' + annivDays + '日 リセット';
+          log.push(amsg);
+          Logger.log(amsg);
+        }
+      }
+    }
+  }
+  Logger.log('autoGrantLeave 完了: ' + log.length + '件処理');
+  return log;
+}
+
+// 毎日7時に autoGrantLeave を実行するトリガーを設定
+function initAutoGrantTrigger() {
+  // 既存の同名トリガーを削除
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'autoGrantLeave') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('autoGrantLeave')
+    .timeBased()
+    .everyDays(1)
+    .atHour(7)
+    .create();
+  Logger.log('autoGrantLeave トリガー設定完了（毎日7:00）');
 }
