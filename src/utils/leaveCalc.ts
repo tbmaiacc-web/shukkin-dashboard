@@ -1,4 +1,4 @@
-import { addMonths, addYears, differenceInMonths, isBefore, format } from 'date-fns'
+import { addMonths, addYears, differenceInMonths, isBefore, setYear, format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
 // 労働基準法の有給付与テーブル（勤続月数 → 付与日数）
@@ -64,6 +64,46 @@ export function getPaidLeaveGrantInfo(hireDate: string): LeaveGrantInfo | null {
       serviceMonthsRemainder: serviceMonths % 12,
       lastGrantDate: prevDate,
       lastGrantDays: 20,
+    }
+  } catch {
+    return null
+  }
+}
+
+// ── アニバーサリー休暇付与日計算 ─────────────────────────
+// 毎年入社記念日に付与
+export interface AnniversaryGrantInfo {
+  nextGrantDate: Date
+  lastGrantDate: Date | null
+  yearsOfService: number
+}
+
+export function getAnniversaryLeaveGrantInfo(hireDate: string): AnniversaryGrantInfo | null {
+  if (!hireDate) return null
+  try {
+    const hire = new Date(hireDate)
+    if (isNaN(hire.getTime())) return null
+    const today = new Date()
+    const serviceMonths = differenceInMonths(today, hire)
+    if (serviceMonths < 0) return null
+
+    const thisYearAnniv = setYear(hire, today.getFullYear())
+    const nextYearAnniv = addYears(thisYearAnniv, 1)
+    const lastYearAnniv = addYears(thisYearAnniv, -1)
+
+    // 今年の記念日がまだ来ていない
+    if (isBefore(today, thisYearAnniv)) {
+      return {
+        nextGrantDate: thisYearAnniv,
+        lastGrantDate: serviceMonths >= 12 ? lastYearAnniv : null,
+        yearsOfService: Math.floor(serviceMonths / 12),
+      }
+    }
+    // 今年の記念日は過ぎた → 次は来年
+    return {
+      nextGrantDate: nextYearAnniv,
+      lastGrantDate: thisYearAnniv,
+      yearsOfService: Math.floor(serviceMonths / 12),
     }
   } catch {
     return null

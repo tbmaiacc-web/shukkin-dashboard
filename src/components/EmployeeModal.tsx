@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, CalendarDays } from 'lucide-react'
 import { Employee } from '../types'
-import { getPaidLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
+import { getPaidLeaveGrantInfo, getAnniversaryLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
 
 interface Props {
   employee: Employee | null
@@ -53,6 +53,10 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
   })
 
   const grantInfo = form.hireDate ? getPaidLeaveGrantInfo(form.hireDate) : null
+  const anniversaryGrantInfo = form.hireDate ? getAnniversaryLeaveGrantInfo(form.hireDate) : null
+
+  // 有給未消化警告: 付与済みで0日も使っていない場合
+  const showPaidLeaveWarning = (form.paidLeaveAllotted ?? 0) > 0 && (form.paidLeaveUsed ?? 0) === 0
 
   const handleClose = () => {
     if (saving) return
@@ -193,6 +197,14 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
                     残 {paidRemaining}日
                   </span>
                 </div>
+                {showPaidLeaveWarning && (
+                  <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2">
+                    <span className="text-amber-500 text-sm shrink-0">⚠️</span>
+                    <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+                      今年度の有給休暇がまだ消化されていません。計画的な取得を促してください。
+                    </p>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <p className="text-[10px] text-gray-500 mb-1">
@@ -226,6 +238,26 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
                     残 {anniversaryRemaining}日
                   </span>
                 </div>
+                {anniversaryGrantInfo && (
+                  <div className="mb-3 bg-orange-100/60 rounded-xl px-3 py-2 flex flex-col gap-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-orange-700 font-semibold flex items-center gap-1">
+                        <CalendarDays size={10} />次回付与
+                      </span>
+                      <span className="text-xs font-bold text-orange-700">
+                        {formatShortDate(anniversaryGrantInfo.nextGrantDate)}
+                      </span>
+                    </div>
+                    {anniversaryGrantInfo.lastGrantDate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-500">前回付与</span>
+                        <span className="text-[10px] text-gray-400">
+                          {formatShortDate(anniversaryGrantInfo.lastGrantDate)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <p className="text-[10px] text-gray-500 mb-1">

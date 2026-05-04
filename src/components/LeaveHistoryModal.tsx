@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Employee, HistoryEntry } from '../types'
 import { getHistory } from '../hooks/useMutation'
-import { getPaidLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
+import { getPaidLeaveGrantInfo, getAnniversaryLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
 
 interface Props {
   employee: Employee
@@ -57,9 +57,11 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
   })
 
   const grantInfo = employee.hireDate ? getPaidLeaveGrantInfo(employee.hireDate) : null
+  const anniversaryGrantInfo = employee.hireDate ? getAnniversaryLeaveGrantInfo(employee.hireDate) : null
 
   const paidRemaining = (employee.paidLeaveAllotted ?? 10) - (employee.paidLeaveUsed ?? 0)
   const anniversaryRemaining = (employee.anniversaryLeaveAllotted ?? 5) - (employee.anniversaryLeaveUsed ?? 0)
+  const showPaidLeaveWarning = (employee.paidLeaveAllotted ?? 0) > 0 && (employee.paidLeaveUsed ?? 0) === 0
 
   const content = (
     <div className="fixed inset-0 z-[150] flex items-end justify-center" onClick={handleClose}>
@@ -111,27 +113,69 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
             </div>
           </div>
 
-          {/* 有給付与情報 */}
-          {grantInfo && (
-            <div className="bg-blue-50 rounded-2xl px-3 py-2.5 mb-3 flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600 mb-0.5">
-                <CalendarDays size={11} />
-                勤続 {grantInfo.serviceYears > 0 ? `${grantInfo.serviceYears}年` : ''}{grantInfo.serviceMonthsRemainder}ヶ月
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] text-gray-500">次回有給付与</span>
-                <span className="text-xs font-bold text-blue-700">
-                  {formatShortDate(grantInfo.nextGrantDate)}（{grantInfo.nextGrantDays}日）
-                </span>
-              </div>
-              {grantInfo.lastGrantDate && (
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-gray-500">前回付与</span>
-                  <span className="text-[10px] text-gray-400">
-                    {formatShortDate(grantInfo.lastGrantDate)}（{grantInfo.lastGrantDays}日）
-                  </span>
+          {/* 有給 / アニバーサリー付与情報 */}
+          {(grantInfo || anniversaryGrantInfo) && (
+            <div className="flex gap-2 mb-3">
+              {/* 有給付与 */}
+              {grantInfo && (
+                <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2.5 flex flex-col gap-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 mb-0.5">
+                    <CalendarDays size={10} />
+                    有給付与
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500">次回</span>
+                    <span className="text-[11px] font-bold text-blue-700">
+                      {formatShortDate(grantInfo.nextGrantDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500">日数</span>
+                    <span className="text-[10px] text-blue-600 font-semibold">{grantInfo.nextGrantDays}日</span>
+                  </div>
+                  {grantInfo.lastGrantDate && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-gray-400">前回</span>
+                      <span className="text-[10px] text-gray-400">{formatShortDate(grantInfo.lastGrantDate)}</span>
+                    </div>
+                  )}
                 </div>
               )}
+              {/* アニバーサリー付与 */}
+              {anniversaryGrantInfo && (
+                <div className="flex-1 bg-orange-50 rounded-2xl px-3 py-2.5 flex flex-col gap-1">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 mb-0.5">
+                    <CalendarDays size={10} />
+                    アニバ付与
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500">次回</span>
+                    <span className="text-[11px] font-bold text-orange-700">
+                      {formatShortDate(anniversaryGrantInfo.nextGrantDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500">勤続</span>
+                    <span className="text-[10px] text-orange-600 font-semibold">{anniversaryGrantInfo.yearsOfService}年目</span>
+                  </div>
+                  {anniversaryGrantInfo.lastGrantDate && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-gray-400">前回</span>
+                      <span className="text-[10px] text-gray-400">{formatShortDate(anniversaryGrantInfo.lastGrantDate)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 有給未消化警告 */}
+          {showPaidLeaveWarning && (
+            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2">
+              <span className="text-amber-500 text-sm shrink-0">⚠️</span>
+              <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+                今年度の有給休暇がまだ消化されていません。計画的な取得を促してください。
+              </p>
             </div>
           )}
 
