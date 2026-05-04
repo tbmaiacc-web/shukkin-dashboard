@@ -1,31 +1,38 @@
 import { useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { CheckCircle2 } from 'lucide-react'
 
 interface Props {
   message: string
   onDone: () => void
+  duration?: number
 }
 
-export default function Toast({ message, onDone }: Props) {
+export default function Toast({ message, onDone, duration = 2500 }: Props) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true))
-    const t = setTimeout(() => {
-      setVisible(false)
-      setTimeout(onDone, 300)
-    }, 2000)
-    return () => clearTimeout(t)
-  }, [])
+    const hideAt = setTimeout(() => setVisible(false), duration - 350)
+    const doneAt = setTimeout(onDone, duration)
+    return () => { clearTimeout(hideAt); clearTimeout(doneAt) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return (
+  return createPortal(
     <div
-      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-2 bg-gray-900 text-white text-sm px-5 py-3 rounded-full shadow-lg transition-all duration-300 whitespace-nowrap ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-      }`}
+      className="fixed left-0 right-0 z-[300] flex justify-center pointer-events-none"
+      style={{
+        bottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))',
+        transition: 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(14px)',
+      }}
     >
-      <Check size={14} className="text-green-400 shrink-0" />
-      {message}
-    </div>
+      <div className="flex items-center gap-2.5 bg-gray-900/92 backdrop-blur-md text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl whitespace-nowrap">
+        <CheckCircle2 size={17} className="text-green-400 shrink-0" />
+        {message}
+      </div>
+    </div>,
+    document.body
   )
 }

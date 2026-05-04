@@ -8,6 +8,7 @@ import { useAdminAuth } from '../hooks/useAdminAuth'
 import EmployeeModal from './EmployeeModal'
 import AdminPinModal from './AdminPinModal'
 import LeaveHistoryModal from './LeaveHistoryModal'
+import Toast from './Toast'
 
 interface Props {
   employees: Employee[]
@@ -20,6 +21,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
   const [saving, setSaving] = useState(false)
   const [pinModal, setPinModal] = useState(false)
   const [historyEmployee, setHistoryEmployee] = useState<Employee | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const { isAdmin, verifying, error, login, logout, clearError } = useAdminAuth()
 
@@ -32,8 +34,10 @@ export default function EmployeeList({ employees, onReload }: Props) {
     try {
       if (modal === 'new') {
         await addEmployee(emp)
+        setToast(`${emp.name} を追加しました`)
       } else {
         await updateEmployee(emp)
+        setToast(`${emp.name} の情報を保存しました`)
       }
     } finally {
       setSaving(false)
@@ -210,6 +214,11 @@ export default function EmployeeList({ employees, onReload }: Props) {
           employee={historyEmployee}
           onClose={() => setHistoryEmployee(null)}
         />
+      )}
+
+      {/* 保存完了トースト */}
+      {toast && (
+        <Toast message={toast} onDone={() => setToast(null)} />
       )}
     </div>
   )
