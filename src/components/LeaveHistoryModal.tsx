@@ -1,28 +1,33 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Loader, Calendar } from 'lucide-react'
+import { X, Loader, Calendar, CalendarDays } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Employee, HistoryEntry } from '../types'
 import { getHistory } from '../hooks/useMutation'
+import { getPaidLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
 
 interface Props {
   employee: Employee
   onClose: () => void
 }
 
-const LEAVE_TYPES = new Set(['有休', 'アニ休', 'AMアニ休', 'PMアニ休'])
+const LEAVE_TYPES = new Set(['有休', 'AM有休', 'PM有休', 'アニ休', 'AMアニ休', 'PMアニ休'])
 
 const LEAVE_LABEL: Record<string, string> = {
-  '有休':   '有給休暇',
-  'アニ休': 'アニバーサリー休暇',
+  '有休':     '有給休暇',
+  'AM有休':   'AM有給休暇',
+  'PM有休':   'PM有給休暇',
+  'アニ休':   'アニバーサリー',
   'AMアニ休': 'AMアニバーサリー',
   'PMアニ休': 'PMアニバーサリー',
 }
 
 const LEAVE_COLOR: Record<string, string> = {
-  '有休':   'bg-green-50 text-green-600',
-  'アニ休': 'bg-orange-50 text-orange-500',
+  '有休':     'bg-green-50 text-green-600',
+  'AM有休':   'bg-green-50 text-green-500',
+  'PM有休':   'bg-green-50 text-green-500',
+  'アニ休':   'bg-orange-50 text-orange-500',
   'AMアニ休': 'bg-orange-50 text-orange-400',
   'PMアニ休': 'bg-orange-50 text-orange-400',
 }
@@ -46,10 +51,12 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
   }
 
   const filtered = history.filter(e => {
-    if (tab === 'paid') return e.newShift === '有休'
+    if (tab === 'paid') return ['有休', 'AM有休', 'PM有休'].includes(e.newShift)
     if (tab === 'anniversary') return ['アニ休', 'AMアニ休', 'PMアニ休'].includes(e.newShift)
     return true
   })
+
+  const grantInfo = employee.hireDate ? getPaidLeaveGrantInfo(employee.hireDate) : null
 
   const paidRemaining = (employee.paidLeaveAllotted ?? 10) - (employee.paidLeaveUsed ?? 0)
   const anniversaryRemaining = (employee.anniversaryLeaveAllotted ?? 5) - (employee.anniversaryLeaveUsed ?? 0)
@@ -103,6 +110,30 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
               </div>
             </div>
           </div>
+
+          {/* 有給付与情報 */}
+          {grantInfo && (
+            <div className="bg-blue-50 rounded-2xl px-3 py-2.5 mb-3 flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600 mb-0.5">
+                <CalendarDays size={11} />
+                勤続 {grantInfo.serviceYears > 0 ? `${grantInfo.serviceYears}年` : ''}{grantInfo.serviceMonthsRemainder}ヶ月
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-gray-500">次回有給付与</span>
+                <span className="text-xs font-bold text-blue-700">
+                  {formatShortDate(grantInfo.nextGrantDate)}（{grantInfo.nextGrantDays}日）
+                </span>
+              </div>
+              {grantInfo.lastGrantDate && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-gray-500">前回付与</span>
+                  <span className="text-[10px] text-gray-400">
+                    {formatShortDate(grantInfo.lastGrantDate)}（{grantInfo.lastGrantDays}日）
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* タブ */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">

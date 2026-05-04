@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { X, CalendarDays } from 'lucide-react'
 import { Employee } from '../types'
+import { getPaidLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
 
 interface Props {
   employee: Employee | null
@@ -44,11 +45,14 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
     name: employee?.name || '',
     role: employee?.role || 'セラピスト',
     location: employee?.location || '草加院',
+    hireDate: employee?.hireDate || '',
     paidLeaveAllotted: employee?.paidLeaveAllotted ?? 10,
     paidLeaveUsed: employee?.paidLeaveUsed ?? 0,
     anniversaryLeaveAllotted: employee?.anniversaryLeaveAllotted ?? 5,
     anniversaryLeaveUsed: employee?.anniversaryLeaveUsed ?? 0,
   })
+
+  const grantInfo = form.hireDate ? getPaidLeaveGrantInfo(form.hireDate) : null
 
   const handleClose = () => {
     if (saving) return
@@ -146,6 +150,39 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
                     >{l}</button>
                   ))}
                 </div>
+              </div>
+
+              {/* 入社年月日 */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">入社年月日</label>
+                <input
+                  type="date"
+                  value={form.hireDate || ''}
+                  onChange={e => setForm(f => ({ ...f, hireDate: e.target.value }))}
+                  className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                />
+                {grantInfo && (
+                  <div className="mt-2 bg-blue-50 rounded-xl px-3 py-2.5 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600">
+                      <CalendarDays size={12} />
+                      勤続 {grantInfo.serviceYears > 0 ? `${grantInfo.serviceYears}年` : ''}{grantInfo.serviceMonthsRemainder}ヶ月
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-gray-500">次回有給付与</span>
+                      <span className="text-xs font-bold text-blue-700">
+                        {formatShortDate(grantInfo.nextGrantDate)}（{grantInfo.nextGrantDays}日）
+                      </span>
+                    </div>
+                    {grantInfo.lastGrantDate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-gray-500">前回付与</span>
+                        <span className="text-[10px] text-gray-400">
+                          {formatShortDate(grantInfo.lastGrantDate)}（{grantInfo.lastGrantDays}日）
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 有給休暇 */}

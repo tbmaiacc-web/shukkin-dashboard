@@ -3,6 +3,7 @@ export interface Employee {
   name: string
   role: string
   location: string
+  hireDate?: string                   // 入社年月日 'yyyy-MM-dd'
   paidLeaveAllotted?: number          // 有給：年間付与日数
   paidLeaveUsed?: number              // 有給：使用済み日数
   anniversaryLeaveAllotted?: number   // アニバーサリー：年間付与日数（デフォルト5）
