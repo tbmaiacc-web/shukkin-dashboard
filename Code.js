@@ -60,7 +60,11 @@ function getEmployeesJson() {
   const headers = rows[0];
   return rows.slice(1).filter(r => r[0]).map(r => {
     const obj = {};
-    headers.forEach((h, i) => obj[h] = String(r[i] || '').trim());
+    headers.forEach((h, i) => {
+      obj[h] = r[i] instanceof Date
+        ? Utilities.formatDate(r[i], 'Asia/Tokyo', 'yyyy-MM-dd')
+        : String(r[i] || '').trim();
+    });
     return obj;
   });
 }
