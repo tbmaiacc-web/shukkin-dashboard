@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, CalendarDays, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, Pencil } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
 import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
 import DraftShiftPicker from './DraftShiftPicker'
@@ -48,7 +48,7 @@ function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
 export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift, onToast }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
-  const [viewWeeks, setViewWeeks] = useState<1 | 2 | 4>(4)
+  const viewWeeks = 4
   const [draftMode, setDraftMode] = useState(false)
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
   const [picker, setPicker] = useState<PickerState | null>(null)
@@ -282,26 +282,6 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         </select>
       </div>
 
-      {/* 表示週数切り替えバー */}
-      <div className="bg-white px-3 pb-2 flex-none flex items-center gap-2">
-        <CalendarDays size={13} className="text-gray-400 shrink-0" />
-        <span className="text-xs text-gray-400 mr-1">表示期間</span>
-        <div className="flex bg-gray-100 rounded-xl p-0.5">
-          {([1, 2, 4] as const).map(w => (
-            <button
-              key={w}
-              onClick={() => setViewWeeks(w)}
-              className={`px-3 py-1 rounded-[10px] text-xs font-semibold transition-colors ${
-                viewWeeks === w
-                  ? 'bg-white text-navy-700 shadow-sm'
-                  : 'text-gray-500'
-              }`}
-            >
-              {w}週
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* スクロール領域 */}
       <div ref={scrollRef} className="flex-1 overflow-auto">
