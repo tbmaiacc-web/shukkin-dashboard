@@ -48,7 +48,7 @@ function getShiftInfo(emp: Employee, date: Date, shifts: Shift[]) {
 export default function ShiftTable({ employees, shifts: initialShifts, onReload, onUpdateShift, onToast }: Props) {
   const [baseDate, setBaseDate] = useState(new Date())
   const [locationFilter, setLocationFilter] = useState('全院')
-  const [viewWeeks, setViewWeeks] = useState<1 | 2>(1)
+  const [viewWeeks, setViewWeeks] = useState<1 | 2 | 4>(4)
   const [draftMode, setDraftMode] = useState(false)
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
   const [picker, setPicker] = useState<PickerState | null>(null)
@@ -287,7 +287,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         <CalendarDays size={13} className="text-gray-400 shrink-0" />
         <span className="text-xs text-gray-400 mr-1">表示期間</span>
         <div className="flex bg-gray-100 rounded-xl p-0.5">
-          {([1, 2] as const).map(w => (
+          {([1, 2, 4] as const).map(w => (
             <button
               key={w}
               onClick={() => setViewWeeks(w)}
@@ -314,7 +314,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
               {days.map((d, i) => {
                 const isTodayCol = isSameDay(d, today)
                 const dow = d.getDay()
-                const isWeekBoundary = viewWeeks === 2 && i === 7
+                const isWeekBoundary = viewWeeks >= 2 && i > 0 && i % 7 === 0
                 return (
                   <th
                     key={i}
@@ -370,7 +370,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                         ? (SHIFT_DISPLAY[draft.shiftType] || WORKING)
                         : savedDisplay
                       const isDraft = !!draft
-                      const isWeekBoundary = viewWeeks === 2 && i === 7
+                      const isWeekBoundary = viewWeeks >= 2 && i > 0 && i % 7 === 0
 
                       return (
                         <td
