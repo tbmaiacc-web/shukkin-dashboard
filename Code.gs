@@ -20,6 +20,8 @@ function doGet(e) {
       result = updateEmployee(p);
     } else if (action === 'addEmployee') {
       result = addEmployee(p);
+    } else if (action === 'deleteEmployee') {
+      result = deleteEmployee(p);
     } else if (action === 'employees') {
       result = getEmployeesJson();
     } else if (action === 'shifts') {
@@ -181,6 +183,21 @@ function updateEmployee(data) {
       headers.forEach((h, j) => {
         if (data[h] !== undefined) sheet.getRange(i + 1, j + 1).setValue(data[h]);
       });
+      return { ok: true };
+    }
+  }
+  return { error: 'Employee not found' };
+}
+
+function deleteEmployee(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('employees');
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx = headers.indexOf('id');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      sheet.deleteRow(i + 1);
       return { ok: true };
     }
   }

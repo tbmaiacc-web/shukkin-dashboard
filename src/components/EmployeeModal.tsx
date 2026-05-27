@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, CalendarDays } from 'lucide-react'
+import { X, CalendarDays, Trash2 } from 'lucide-react'
 import { Employee } from '../types'
 import { getPaidLeaveGrantInfo, getAnniversaryLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
 
@@ -8,6 +8,7 @@ interface Props {
   employee: Employee | null
   isAdmin: boolean
   onSave: (emp: Employee) => void
+  onDelete?: (emp: Employee) => void
   onClose: () => void
   saving: boolean
 }
@@ -38,9 +39,10 @@ function StepCounter({
   )
 }
 
-export default function EmployeeModal({ employee, isAdmin, onSave, onClose, saving }: Props) {
+export default function EmployeeModal({ employee, isAdmin, onSave, onDelete, onClose, saving }: Props) {
   const isNew = !employee
   const [closing, setClosing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [form, setForm] = useState<Omit<Employee, 'id'>>({
     name: employee?.name || '',
     role: employee?.role || 'セラピスト',
@@ -287,19 +289,50 @@ export default function EmployeeModal({ employee, isAdmin, onSave, onClose, savi
           )}
         </div>
 
-        {/* ── 保存ボタン（常に下部に固定） ── */}
+        {/* ── 下部ボタン（固定） ── */}
         {!saving && (
-          <div
-            className="flex-none px-6 pt-3 border-t border-gray-100"
-            style={{ paddingBottom: '1.5rem' }}
-          >
-            <button
-              onClick={handleSave}
-              disabled={!form.name.trim()}
-              className="w-full py-3.5 bg-navy-700 text-white text-sm font-semibold rounded-2xl disabled:opacity-40 active:opacity-80 transition-opacity shadow-sm"
-            >
-              保存する
-            </button>
+          <div className="flex-none px-6 pt-3 border-t border-gray-100" style={{ paddingBottom: '1.5rem' }}>
+            {/* 削除確認 */}
+            {confirmDelete ? (
+              <div className="bg-red-50 rounded-2xl p-4 mb-3">
+                <p className="text-sm font-semibold text-red-700 text-center mb-3">
+                  {form.name} を削除しますか？<br />
+                  <span className="text-xs font-normal text-red-500">この操作は取り消せません</span>
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl active:opacity-70"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={() => employee && onDelete?.(employee)}
+                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl active:opacity-70"
+                  >
+                    削除する
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {!isNew && isAdmin && onDelete && (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="p-3.5 bg-red-50 text-red-400 rounded-2xl active:opacity-70 transition-opacity shrink-0"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={!form.name.trim()}
+                  className="flex-1 py-3.5 bg-navy-700 text-white text-sm font-semibold rounded-2xl disabled:opacity-40 active:opacity-80 transition-opacity shadow-sm"
+                >
+                  保存する
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

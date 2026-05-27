@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { Search, Pencil, Plus, Users, ShieldCheck, ShieldOff, History } from 'lucide-react'
 import { Employee } from '../types'
-import { updateEmployee, addEmployee } from '../hooks/useMutation'
+import { updateEmployee, addEmployee, deleteEmployee } from '../hooks/useMutation'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import EmployeeModal from './EmployeeModal'
 import AdminPinModal from './AdminPinModal'
@@ -28,6 +28,18 @@ export default function EmployeeList({ employees, onReload }: Props) {
   const filtered = employees.filter(emp =>
     !search || emp.name.includes(search) || emp.location.includes(search) || emp.role.includes(search)
   )
+
+  const handleDelete = async (emp: Employee) => {
+    setSaving(true)
+    try {
+      await deleteEmployee(emp)
+      setToast(`${emp.name} を削除しました`)
+    } finally {
+      setSaving(false)
+      setModal(undefined)
+      setTimeout(onReload, 1500)
+    }
+  }
 
   const handleSave = async (emp: Employee) => {
     setSaving(true)
@@ -188,6 +200,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
           employee={modal === 'new' ? null : modal}
           isAdmin={isAdmin}
           onSave={handleSave}
+          onDelete={handleDelete}
           onClose={() => setModal(undefined)}
           saving={saving}
         />

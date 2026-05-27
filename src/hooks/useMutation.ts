@@ -37,6 +37,10 @@ export async function updateEmployee(employee: Employee) {
   })
 }
 
+export async function deleteEmployee(employee: Employee) {
+  await gasGet({ action: 'deleteEmployee', id: employee.id })
+}
+
 export async function addEmployee(employee: Employee) {
   await gasGet({
     action: 'addEmployee',
