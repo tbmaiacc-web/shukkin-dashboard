@@ -22,7 +22,7 @@ const SHIFT_GROUPS = [
   },
   {
     label: 'その他',
-    items: ['研修', '出張', 'バイト'],
+    items: ['研修', '出張', 'バイト', 'AMバイト', 'PMバイト'],
   },
 ]
 
@@ -43,6 +43,8 @@ const SHIFT_COLORS: Record<string, string> = {
   '研修':    'bg-purple-50 text-purple-600 border-purple-100',
   '出張':    'bg-yellow-50 text-yellow-700 border-yellow-100',
   'バイト':  'bg-gray-100  text-gray-500  border-gray-200',
+  'AMバイト':'bg-gray-100  text-gray-400  border-gray-200',
+  'PMバイト':'bg-gray-100  text-gray-400  border-gray-200',
 }
 
 export default function DraftShiftPicker({

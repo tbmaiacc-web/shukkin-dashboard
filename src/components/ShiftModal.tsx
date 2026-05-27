@@ -27,6 +27,8 @@ const SHIFT_OPTIONS = [
   { value: '研修',     label: '研修',             color: 'bg-purple-50 text-purple-600 border-purple-200' },
   { value: '出張',     label: '出張',             color: 'bg-yellow-50 text-yellow-600 border-yellow-200' },
   { value: 'バイト',   label: 'バイト',           color: 'bg-gray-50 text-gray-500 border-gray-200' },
+  { value: 'AMバイト', label: 'AMバイト',         color: 'bg-gray-50 text-gray-400 border-gray-100' },
+  { value: 'PMバイト', label: 'PMバイト',         color: 'bg-gray-50 text-gray-400 border-gray-100' },
 ]
 
 export default function ShiftModal({ date, employeeName, currentShift, onSave, onClose, saving }: Props) {

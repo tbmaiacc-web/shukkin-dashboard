@@ -47,6 +47,8 @@ export const SHIFT_DISPLAY: Record<string, { label: string; className: string }>
   '研修':    { label: '研修', className: 'text-purple-600 bg-purple-50' },
   '出張':    { label: '出張', className: 'text-yellow-700 bg-yellow-50' },
   'バイト':  { label: 'バイ', className: 'text-gray-500 bg-gray-100' },
+  'AMバイト':{ label: 'AMバイ', className: 'text-gray-400 bg-gray-100' },
+  'PMバイト':{ label: 'PMバイ', className: 'text-gray-400 bg-gray-100' },
 }
 
 export const WORKING = { label: '出', className: 'text-blue-500' }
