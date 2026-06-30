@@ -4,9 +4,30 @@ import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, is
 import { ja } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, Pencil } from 'lucide-react'
 import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
-import { upsertShift, deleteShift, addHistory, incrementUsedLeave, incrementUsedAnniversaryLeave } from '../hooks/useMutation'
+import { upsertShift, deleteShift, addHistory } from '../hooks/useMutation'
 import DraftShiftPicker from './DraftShiftPicker'
 import HistoryDrawer from './HistoryDrawer'
+import LeaveRequestModal from './LeaveRequestModal'
+
+import type { LeaveType } from '../api/leave'
+
+// シフト種別 → 休暇申請（種別・休暇タイプ）。該当しなければ undefined（申請対象外）
+const LEAVE_MAP: Record<string, { kind: string; leaveType: LeaveType }> = {
+  '有休':     { kind: '全日',     leaveType: '有給' },
+  'AM有休':   { kind: '午前半休', leaveType: '有給' },
+  'PM有休':   { kind: '午後半休', leaveType: '有給' },
+  'アニ休':   { kind: '全日',     leaveType: 'アニバーサリー' },
+  'AMアニ休': { kind: '午前半休', leaveType: 'アニバーサリー' },
+  'PMアニ休': { kind: '午後半休', leaveType: 'アニバーサリー' },
+}
+
+interface LeaveContext {
+  name: string
+  dept: string
+  date: string // yyyy-MM-dd
+  kind: string
+  leaveType: LeaveType
+}
 
 interface Props {
   employees: Employee[]
@@ -52,6 +73,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [draftMode, setDraftMode] = useState(false)
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
   const [picker, setPicker] = useState<PickerState | null>(null)
+  const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -120,6 +142,18 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       }
       return next
     })
+
+    // 有休/アニ休系を選んだら → その場で申請モーダルを開く（氏名・日付・種別を引き継ぐ）
+    const m = LEAVE_MAP[shiftType]
+    if (m && shiftType !== picker.originalShift) {
+      setLeaveCtx({
+        name: picker.emp.name,
+        dept: picker.emp.location,
+        date: dateStr,
+        kind: m.kind,
+        leaveType: m.leaveType,
+      })
+    }
     setPicker(null)
   }
 
@@ -144,32 +178,30 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     setDraftMode(false)
     setDraftChanges(new Map())
 
-    // 3. GAS にシフト並列送信（全て完了を待つ）
-    await Promise.allSettled(
-      changes.map(c =>
-        c.shiftType === '出勤'
-          ? deleteShift(c.dateStr, c.employeeName)
-          : upsertShift(c.dateStr, c.employeeName, c.shiftType, c.location, '')
-      )
-    )
+    // 3. GAS にシフト順次送信
+    // 並列だとGASの同時実行制限（6並列）とスプレッドシート書き込みロックで
+    // 5件以上で一部が失敗するため、必ず順次 await で送る。
+    for (const c of changes) {
+      try {
+        if (c.shiftType === '出勤') {
+          await deleteShift(c.dateStr, c.employeeName)
+        } else {
+          await upsertShift(c.dateStr, c.employeeName, c.shiftType, c.location, '')
+        }
+      } catch (e) {
+        console.error('shift save failed:', c, e)
+      }
+    }
 
-    // 4. 履歴・有給残処理（全て完了を待つ）
-    await Promise.allSettled(
-      changes
-        .filter(c => c.shiftType !== c.originalShift)
-        .flatMap(c => [
-          addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType),
-          c.shiftType === '有休'
-            ? incrementUsedLeave(c.employeeName, 1)
-            : c.shiftType === 'AM有休' || c.shiftType === 'PM有休'
-            ? incrementUsedLeave(c.employeeName, 0.5)
-            : c.shiftType === 'アニ休'
-            ? incrementUsedAnniversaryLeave(c.employeeName, 1)
-            : ['AMアニ休', 'PMアニ休'].includes(c.shiftType)
-            ? incrementUsedAnniversaryLeave(c.employeeName, 0.5)
-            : Promise.resolve(),
-        ])
-    )
+    // 4. 履歴記録も順次（同じくGAS同時実行制限回避）
+    for (const c of changes) {
+      if (c.shiftType === c.originalShift) continue
+      try {
+        await addHistory(c.dateStr, c.employeeName, c.originalShift, c.shiftType)
+      } catch (e) {
+        console.error('history save failed:', c, e)
+      }
+    }
 
     // 5. サイレントリロード（全処理完了後）
     await onReload()
@@ -413,6 +445,19 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           originalShift={picker.originalShift}
           onSelect={handlePickerSelect}
           onClose={() => setPicker(null)}
+        />
+      )}
+
+      {/* 有給申請モーダル（有休シフト選択時に起動） */}
+      {leaveCtx && (
+        <LeaveRequestModal
+          locked
+          leaveType={leaveCtx.leaveType}
+          defaultName={leaveCtx.name}
+          defaultDept={leaveCtx.dept}
+          defaultDate={leaveCtx.date}
+          defaultKind={leaveCtx.kind}
+          onClose={() => setLeaveCtx(null)}
         />
       )}
 
