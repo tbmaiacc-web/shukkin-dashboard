@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { Search, Pencil, Plus, Users, ShieldCheck, ShieldOff, History } from 'lucide-react'
+import { Search, Pencil, Plus, Users, ShieldCheck, ShieldOff, History, AlertTriangle } from 'lucide-react'
 import { Employee } from '../types'
 import { updateEmployee, addEmployee, deleteEmployee } from '../hooks/useMutation'
+import { useLeaveBalances } from '../hooks/useLeaveBalances'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 import EmployeeModal from './EmployeeModal'
 import AdminPinModal from './AdminPinModal'
@@ -24,6 +25,9 @@ export default function EmployeeList({ employees, onReload }: Props) {
   const [toast, setToast] = useState<string | null>(null)
 
   const { isAdmin, verifying, error, login, logout, clearError } = useAdminAuth()
+
+  // 残日数の「正」は有給申請GAS。キャッシュ付きフックで取得（タブ切替で取り直さない）
+  const { balances } = useLeaveBalances()
 
   const filtered = employees.filter(emp =>
     !search || emp.name.includes(search) || emp.location.includes(search) || emp.role.includes(search)
@@ -127,20 +131,35 @@ export default function EmployeeList({ employees, onReload }: Props) {
         ) : (
           <div className="space-y-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:space-y-0">
             {filtered.map(emp => {
-              const paidRemaining = (emp.paidLeaveAllotted ?? 10) - (emp.paidLeaveUsed ?? 0)
-              const annivRemaining = (emp.anniversaryLeaveAllotted ?? 5) - (emp.anniversaryLeaveUsed ?? 0)
-              const hasPaid = emp.paidLeaveAllotted !== undefined
-              const hasAnniv = emp.anniversaryLeaveAllotted !== undefined
+              // 残は有給申請GASの値を優先（姓キー）。未取得時はダッシュボード自前値にフォールバック
+              const gb = balances[emp.name]
+              const gPaid = gb?.paid
+              const gAnniv = gb?.anniv
+              const paidRemaining = gPaid ? gPaid.remaining : (emp.paidLeaveAllotted ?? 10) - (emp.paidLeaveUsed ?? 0)
+              const paidTotal = gPaid ? gPaid.granted : emp.paidLeaveAllotted
+              const annivRemaining = gAnniv ? gAnniv.remaining : (emp.anniversaryLeaveAllotted ?? 5) - (emp.anniversaryLeaveUsed ?? 0)
+              const annivTotal = gAnniv ? gAnniv.allot : emp.anniversaryLeaveAllotted
+              const hasPaid = gPaid != null || emp.paidLeaveAllotted !== undefined
+              const hasAnniv = gAnniv != null || emp.anniversaryLeaveAllotted !== undefined
+              // GASに登録があり、かつ未確認（入社日/有給/アニ調整が未完）
+              const needsReview = gb != null && gb.verified === false
 
               return (
-                <div key={emp.id} className="bg-white rounded-2xl px-4 py-3 shadow-sm">
+                <div key={emp.id} className={`bg-white rounded-2xl px-4 py-3 shadow-sm ${needsReview ? 'ring-1 ring-amber-300' : ''}`}>
                   {/* 上段：名前・役職・編集ボタン */}
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-navy-50 rounded-full flex items-center justify-center mr-3 shrink-0">
                       <span className="text-sm font-semibold text-navy-700">{emp.name[0]}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm">{emp.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-gray-900 text-sm">{emp.name}</p>
+                        {needsReview && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-600 text-[10px] font-bold">
+                            <AlertTriangle size={10} />未調整
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400">{emp.role}・{emp.location}</p>
                     </div>
                     {/* 履歴ボタン */}
@@ -171,7 +190,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
                           <span className={`text-sm font-bold ${paidRemaining <= 2 ? 'text-red-500' : 'text-green-600'}`}>
                             {paidRemaining}日
                           </span>
-                          <span className="text-[10px] text-gray-400">/ {emp.paidLeaveAllotted}日</span>
+                          {paidTotal != null && <span className="text-[10px] text-gray-400">/ {paidTotal}日</span>}
                         </div>
                       )}
                       {hasAnniv && (
@@ -182,7 +201,7 @@ export default function EmployeeList({ employees, onReload }: Props) {
                           <span className={`text-sm font-bold ${annivRemaining <= 1 ? 'text-red-500' : 'text-orange-500'}`}>
                             {annivRemaining}日
                           </span>
-                          <span className="text-[10px] text-gray-400">/ {emp.anniversaryLeaveAllotted}日</span>
+                          {annivTotal != null && <span className="text-[10px] text-gray-400">/ {annivTotal}日</span>}
                         </div>
                       )}
                     </div>

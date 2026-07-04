@@ -6,6 +6,7 @@ import { ja } from 'date-fns/locale'
 import { Employee, HistoryEntry } from '../types'
 import { getHistory } from '../hooks/useMutation'
 import { getPaidLeaveGrantInfo, getAnniversaryLeaveGrantInfo, formatShortDate } from '../utils/leaveCalc'
+import { useLeaveBalances } from '../hooks/useLeaveBalances'
 
 interface Props {
   employee: Employee
@@ -59,9 +60,13 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
   const grantInfo = employee.hireDate ? getPaidLeaveGrantInfo(employee.hireDate) : null
   const anniversaryGrantInfo = employee.hireDate ? getAnniversaryLeaveGrantInfo(employee.hireDate) : null
 
-  const paidRemaining = (employee.paidLeaveAllotted ?? 10) - (employee.paidLeaveUsed ?? 0)
-  const anniversaryRemaining = (employee.anniversaryLeaveAllotted ?? 5) - (employee.anniversaryLeaveUsed ?? 0)
-  const showPaidLeaveWarning = (employee.paidLeaveAllotted ?? 0) > 0 && (employee.paidLeaveUsed ?? 0) === 0
+  // 残日数は有給申請GAS（姓キー）を正とする。未取得時のみ自前値にフォールバック
+  const { balances } = useLeaveBalances()
+  const gb = balances[employee.name]
+  const paidRemaining = gb?.paid ? gb.paid.remaining : (employee.paidLeaveAllotted ?? 10) - (employee.paidLeaveUsed ?? 0)
+  const paidTotal = gb?.paid ? gb.paid.granted : (employee.paidLeaveAllotted ?? 10)
+  const anniversaryRemaining = gb?.anniv ? gb.anniv.remaining : (employee.anniversaryLeaveAllotted ?? 5) - (employee.anniversaryLeaveUsed ?? 0)
+  const annivTotal = gb?.anniv ? gb.anniv.allot : (employee.anniversaryLeaveAllotted ?? 5)
 
   const content = (
     <div className="fixed inset-0 z-[150] flex items-end justify-center" onClick={handleClose}>
@@ -99,7 +104,7 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
                 <span className={`text-xl font-bold ${paidRemaining <= 2 ? 'text-red-500' : 'text-green-600'}`}>
                   {paidRemaining}
                 </span>
-                <span className="text-xs text-gray-400">/ {employee.paidLeaveAllotted ?? 10}日</span>
+                <span className="text-xs text-gray-400">/ {paidTotal}日</span>
               </div>
             </div>
             <div className={`flex-1 rounded-2xl px-3 py-2.5 ${anniversaryRemaining <= 1 ? 'bg-red-50' : 'bg-orange-50'}`}>
@@ -108,7 +113,7 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
                 <span className={`text-xl font-bold ${anniversaryRemaining <= 1 ? 'text-red-500' : 'text-orange-500'}`}>
                   {anniversaryRemaining}
                 </span>
-                <span className="text-xs text-gray-400">/ {employee.anniversaryLeaveAllotted ?? 5}日</span>
+                <span className="text-xs text-gray-400">/ {annivTotal}日</span>
               </div>
             </div>
           </div>
@@ -166,16 +171,6 @@ export default function LeaveHistoryModal({ employee, onClose }: Props) {
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* 有給未消化警告 */}
-          {showPaidLeaveWarning && (
-            <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-2">
-              <span className="text-amber-500 text-sm shrink-0">⚠️</span>
-              <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-                今年度の有給休暇がまだ消化されていません。計画的な取得を促してください。
-              </p>
             </div>
           )}
 

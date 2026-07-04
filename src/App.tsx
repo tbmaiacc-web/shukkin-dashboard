@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { TabName, NON_WORKING_TYPES } from './types'
 import { useData } from './hooks/useData'
+import { prefetchLeaveBalances } from './hooks/useLeaveBalances'
 import Dashboard from './components/Dashboard'
 import ShiftTable from './components/ShiftTable'
 import EmployeeList from './components/EmployeeList'
@@ -52,6 +53,9 @@ export default function App() {
   const [animClass, setAnimClass] = useState('')
   const animKey = useRef(0)
   const { employees, shifts, loading, error, reload, updateShiftLocal } = useData()
+
+  // 残日数を起動時に先読み（従業員タブを開く前に温めておく）
+  useEffect(() => { prefetchLeaveBalances() }, [])
 
   const showToast = (msg: string) => setToast(msg)
 
