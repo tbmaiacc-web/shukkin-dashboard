@@ -8,6 +8,7 @@ import { upsertShift, deleteShift, addHistory } from '../hooks/useMutation'
 import DraftShiftPicker from './DraftShiftPicker'
 import HistoryDrawer from './HistoryDrawer'
 import LeaveRequestModal from './LeaveRequestModal'
+import LeaveCancelModal from './LeaveCancelModal'
 
 import type { LeaveType } from '../api/leave'
 
@@ -27,6 +28,16 @@ interface LeaveContext {
   date: string // yyyy-MM-dd
   kind: string
   leaveType: LeaveType
+}
+
+interface CancelContext {
+  name: string
+  date: string       // yyyy-MM-dd
+  leaveType: LeaveType
+  fromShift: string
+  toShift: string
+  cellKey: string    // 「取消しない」時にドラフトを巻き戻すため
+  originalShift: string
 }
 
 interface Props {
@@ -74,6 +85,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
+  const [cancelCtx, setCancelCtx] = useState<CancelContext | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -96,10 +108,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
     end: addDays(weekStartSun, viewWeeks * 7 - 1),
   })
   const today = new Date()
-  const locations = ['全院', ...Array.from(new Set(employees.map(e => e.location))).sort()]
+  const locations = ['全院', '院長のみ', ...Array.from(new Set(employees.map(e => e.location))).sort()]
 
-  const filteredEmployees = locationFilter === '全院'
-    ? employees
+  const filteredEmployees =
+    locationFilter === '全院' ? employees
+    : locationFilter === '院長のみ' ? employees.filter(e => e.role === '院長')
     : employees.filter(e => e.location === locationFilter)
 
   const grouped = Array.from(new Set(filteredEmployees.map(e => e.location))).map(loc => ({
@@ -143,15 +156,30 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
       return next
     })
 
-    // 有休/アニ休系を選んだら → その場で申請モーダルを開く（氏名・日付・種別を引き継ぐ）
-    const m = LEAVE_MAP[shiftType]
-    if (m && shiftType !== picker.originalShift) {
+    // 元シフトが休暇系で、新シフトが「休暇系でない」→ 取消確認モーダル
+    const fromMap = LEAVE_MAP[picker.originalShift]
+    const toMap = LEAVE_MAP[shiftType]
+    if (fromMap && !toMap && shiftType !== picker.originalShift) {
+      setCancelCtx({
+        name: picker.emp.name,
+        date: dateStr,
+        leaveType: fromMap.leaveType,
+        fromShift: picker.originalShift,
+        toShift: shiftType,
+        cellKey: key,
+        originalShift: picker.originalShift,
+      })
+      setPicker(null)
+      return
+    }
+    // 新シフトが休暇系 → 申請モーダル
+    if (toMap && shiftType !== picker.originalShift) {
       setLeaveCtx({
         name: picker.emp.name,
         dept: picker.emp.location,
         date: dateStr,
-        kind: m.kind,
-        leaveType: m.leaveType,
+        kind: toMap.kind,
+        leaveType: toMap.leaveType,
       })
     }
     setPicker(null)
@@ -458,6 +486,28 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           defaultDate={leaveCtx.date}
           defaultKind={leaveCtx.kind}
           onClose={() => setLeaveCtx(null)}
+        />
+      )}
+
+      {/* 休暇取消モーダル（有休/アニ休 → 別種別 に変えた時） */}
+      {cancelCtx && (
+        <LeaveCancelModal
+          name={cancelCtx.name}
+          date={cancelCtx.date}
+          leaveType={cancelCtx.leaveType}
+          fromShift={cancelCtx.fromShift}
+          toShift={cancelCtx.toShift}
+          onClose={() => setCancelCtx(null)}
+          onConfirmed={() => setCancelCtx(null)}
+          onKeep={() => {
+            // シフト変更を巻き戻す（下書きから削除 = 元に戻る）
+            setDraftChanges(prev => {
+              const next = new Map(prev)
+              next.delete(cancelCtx.cellKey)
+              return next
+            })
+            setCancelCtx(null)
+          }}
         />
       )}
 
