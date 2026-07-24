@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format, addWeeks, subWeeks, startOfWeek, eachDayOfInterval, addDays, isSameDay } from 'date-fns'
 import { ja } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, Pencil } from 'lucide-react'
-import { Employee, Shift, SHIFT_DISPLAY, WORKING } from '../types'
+import { ChevronLeft, ChevronRight, RefreshCw, X, Check, Clock, Pencil, Users } from 'lucide-react'
+import { Employee, Shift, SHIFT_DISPLAY, WORKING, NON_WORKING_TYPES } from '../types'
 import { upsertShift, deleteShift, addHistory } from '../hooks/useMutation'
 import DraftShiftPicker from './DraftShiftPicker'
 import HistoryDrawer from './HistoryDrawer'
@@ -82,6 +82,8 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   const [locationFilter, setLocationFilter] = useState('全院')
   const viewWeeks = 4
   const [draftMode, setDraftMode] = useState(false)
+  const [compareMode, setCompareMode] = useState(false)
+  const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set())
   const [draftChanges, setDraftChanges] = useState<Map<string, DraftChange>>(new Map())
   const [picker, setPicker] = useState<PickerState | null>(null)
   const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
@@ -121,6 +123,42 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
   }))
 
   const rangeLabel = `${format(days[0], 'M/d')} – ${format(days[days.length - 1], 'M/d')}`
+
+  // ──────────────────────────────
+  // 突合モード: 選択者の一致判定
+  // ──────────────────────────────
+  const compareResults = new Map<string, 'allWorking' | 'allOff' | 'mixed'>()
+  if (compareMode && selectedNames.size >= 2) {
+    const selectedEmps = employees.filter(e => selectedNames.has(e.name))
+    days.forEach(d => {
+      const dateStr = format(d, 'yyyy-MM-dd')
+      let workCount = 0
+      let offCount = 0
+      selectedEmps.forEach(emp => {
+        const { shiftType } = getShiftInfo(emp, d, initialShifts)
+        if (NON_WORKING_TYPES.has(shiftType)) offCount++
+        else workCount++
+      })
+      if (workCount === selectedEmps.length) compareResults.set(dateStr, 'allWorking')
+      else if (offCount === selectedEmps.length) compareResults.set(dateStr, 'allOff')
+      else compareResults.set(dateStr, 'mixed')
+    })
+  }
+  const allWorkingCount = Array.from(compareResults.values()).filter(v => v === 'allWorking').length
+  const allOffCount = Array.from(compareResults.values()).filter(v => v === 'allOff').length
+
+  const toggleSelect = (name: string) => {
+    setSelectedNames(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+  const clearCompare = () => {
+    setCompareMode(false)
+    setSelectedNames(new Set())
+  }
 
   // ──────────────────────────────
   // 下書きモード: セルタップでピッカー表示
@@ -273,7 +311,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
         </div>
 
         {/* 履歴ボタン（変更モード外のみ） */}
-        {!draftMode && (
+        {!draftMode && !compareMode && (
           <button
             onClick={() => setHistoryOpen(true)}
             className="p-1.5 text-gray-400 hover:text-navy-700 active:opacity-50 transition-colors"
@@ -283,7 +321,22 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           </button>
         )}
 
+        {/* 突合モードボタン（変更モード外のみ） */}
+        {!draftMode && (
+          <button
+            onClick={() => compareMode ? clearCompare() : setCompareMode(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+              compareMode ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'
+            }`}
+            title="複数人の予定を突合"
+          >
+            {compareMode ? <X size={13} /> : <Users size={13} />}
+            {compareMode ? '解除' : '突合'}
+          </button>
+        )}
+
         {/* シフト変更ボタン */}
+        {!compareMode && (
         <button
           onClick={() => draftMode ? exitDraftMode() : setDraftMode(true)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
@@ -295,6 +348,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           {draftMode ? <X size={13} /> : <Pencil size={13} />}
           {draftMode ? 'キャンセル' : 'シフト変更'}
         </button>
+        )}
       </div>
 
       {/* 変更モードヒントバー */}
@@ -305,6 +359,22 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
           </p>
           {draftCount > 0 && (
             <span className="text-xs font-bold text-amber-600">{draftCount}件変更中</span>
+          )}
+        </div>
+      )}
+
+      {/* 突合モードヒントバー */}
+      {compareMode && (
+        <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-1.5 flex-none flex items-center justify-between gap-2">
+          <p className="text-xs text-emerald-700 font-medium">
+            {selectedNames.size < 2
+              ? `名前横の□にチェックを入れて2名以上選択（現在${selectedNames.size}名）`
+              : `${selectedNames.size}名選択中`}
+          </p>
+          {selectedNames.size >= 2 && (
+            <span className="text-xs font-semibold text-emerald-700 shrink-0">
+              全員出勤 <b>{allWorkingCount}</b>日 / 全員休 <b>{allOffCount}</b>日
+            </span>
           )}
         </div>
       )}
@@ -355,6 +425,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                 const isTodayCol = isSameDay(d, today)
                 const dow = d.getDay()
                 const isWeekBoundary = viewWeeks >= 2 && i > 0 && i % 7 === 0
+                const dateStr = format(d, 'yyyy-MM-dd')
+                const cmp = compareResults.get(dateStr)
+                const cmpBg = cmp === 'allWorking' ? 'bg-emerald-100'
+                             : cmp === 'allOff' ? 'bg-rose-100'
+                             : ''
                 return (
                   <th
                     key={i}
@@ -362,7 +437,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                     className={`sticky top-0 z-20 py-2 text-center text-xs font-medium w-12 border-b border-gray-100 ${
                       isWeekBoundary ? 'border-l-2 border-l-navy-200' : ''
                     } ${
-                      isTodayCol ? 'bg-navy-50' : 'bg-white'
+                      cmpBg || (isTodayCol ? 'bg-navy-50' : 'bg-white')
                     } ${
                       dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-500'
                     }`}
@@ -390,10 +465,28 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                 {staff.map(emp => (
                   <tr key={emp.id} className="border-b border-gray-50">
                     {/* 名前セル */}
-                    <td className="px-2 py-1.5 sticky left-0 z-10 bg-white border-r border-gray-100 w-20">
-                      <div className="text-sm font-medium leading-tight text-gray-800">{emp.name}</div>
-                      <div className="text-[10px] leading-tight mt-0.5 text-gray-400">
-                        {emp.location.replace('院', '')}
+                    <td
+                      className={`px-2 py-1.5 sticky left-0 z-10 border-r border-gray-100 w-20 ${
+                        compareMode && selectedNames.has(emp.name) ? 'bg-emerald-50' : 'bg-white'
+                      } ${compareMode ? 'cursor-pointer' : ''}`}
+                      onClick={() => compareMode && toggleSelect(emp.name)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {compareMode && (
+                          <span className={`inline-block w-3.5 h-3.5 rounded border-2 shrink-0 ${
+                            selectedNames.has(emp.name)
+                              ? 'bg-emerald-500 border-emerald-500 flex items-center justify-center'
+                              : 'border-gray-300 bg-white'
+                          }`}>
+                            {selectedNames.has(emp.name) && <Check size={9} className="text-white" strokeWidth={4} />}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium leading-tight text-gray-800 truncate">{emp.name}</div>
+                          <div className="text-[10px] leading-tight mt-0.5 text-gray-400">
+                            {emp.location.replace('院', '')}
+                          </div>
+                        </div>
                       </div>
                     </td>
 
@@ -411,6 +504,11 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                         : savedDisplay
                       const isDraft = !!draft
                       const isWeekBoundary = viewWeeks >= 2 && i > 0 && i % 7 === 0
+                      const cmp = compareResults.get(dateStr)
+                      const isSelectedRow = compareMode && selectedNames.has(emp.name)
+                      const cmpCellBg = isSelectedRow && cmp === 'allWorking' ? 'bg-emerald-50'
+                                      : isSelectedRow && cmp === 'allOff' ? 'bg-rose-50'
+                                      : ''
 
                       return (
                         <td
@@ -423,7 +521,7 @@ export default function ShiftTable({ employees, shifts: initialShifts, onReload,
                           } ${
                             isDraft
                               ? 'ring-2 ring-inset ring-amber-400 bg-amber-50'
-                              : `${display.className} ${isTodayCol ? 'bg-navy-50/60' : ''}`
+                              : `${display.className} ${cmpCellBg || (isTodayCol ? 'bg-navy-50/60' : '')}`
                           }`}
                         >
                           <span className={isDraft ? 'text-amber-700' : ''}>
